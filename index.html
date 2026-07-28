@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEURA — Курс по нейросетям: сайты, видео, 3D-анимация</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- procedural depth: tunnel grid + cursor rain -->
+<canvas id="tunnel"></canvas>
+<canvas id="rain"></canvas>
+<div class="scrim"></div>
+<div class="vignette"></div>
+<div class="scanlines"></div>
+<div class="progress" id="progress"></div>
+
+<header class="header" id="header">
+  <div class="wrap header__row">
+    <a href="#" class="logo">NEURA<b>_</b></a>
+    <nav class="nav" id="nav">
+      <a href="#learn">Чему учим</a>
+      <a href="#program">Программа</a>
+      <a href="#platforms">Платформы</a>
+      <a href="#money">Заработок</a>
+      <a href="#pricing">Тарифы</a>
+    </nav>
+    <button class="burger" id="burger" aria-label="Меню"><span></span><span></span></button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero stage">
+  <div class="wrap hero__body">
+    <p class="label up mono">Нейросети · Сайты · Видео · 3D</p>
+    <h1 class="h1 up" data-decode>
+      Создавай сайты,<br>видео и 3D-анимацию<br><span class="dim">с помощью нейросетей</span>
+    </h1>
+    <p class="lead up">
+      Курс для тех, у кого есть базовые знания компьютера. Без кода и команды —
+      только вы и нейросети. На выходе — контент, который площадки монетизируют.
+    </p>
+    <div class="row up">
+      <a href="#pricing" class="btn btn--fill">Тарифы</a>
+      <a href="#program" class="btn btn--line">Программа</a>
+    </div>
+  </div>
+  <div class="hero__meta mono up">
+    <span>SYS / ГОТОВ</span><span class="sep">—</span><span id="clock">00:00:00</span>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker__line mono">
+    <span>Midjourney · Runway · Sora · Kling · Blender · ChatGPT · Veo · Higgsfield · Stable Diffusion · </span>
+    <span>Midjourney · Runway · Sora · Kling · Blender · ChatGPT · Veo · Higgsfield · Stable Diffusion · </span>
+  </div>
+</div>
+
+<!-- LEARN -->
+<section class="sec pad stage" id="learn">
+  <div class="wrap">
+    <p class="label up mono">01 — Чему учим</p>
+    <h2 class="h2 up" data-decode>Три навыка,<br><span class="dim">которые закрывают весь контент</span></h2>
+
+    <div class="grid3 depth">
+      <div class="item up">
+        <span class="item__n mono">01</span>
+        <h3>Сайты</h3>
+        <p>Лендинги, портфолио, сайты-визитки. От идеи до готовой страницы в интернете — нейросеть пишет код, вы управляете результатом.</p>
+      </div>
+      <div class="item up">
+        <span class="item__n mono">02</span>
+        <h3>Видео</h3>
+        <p>Генерация роликов с нуля, оживление изображений, монтаж, озвучка и субтитры. Вертикальный и горизонтальный формат.</p>
+      </div>
+      <div class="item up">
+        <span class="item__n mono">03</span>
+        <h3>3D-анимация</h3>
+        <p>Объёмные сцены, персонажи и движение без опыта в 3D-редакторах. Готовые ролики для рекламы и соцсетей.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATEMENT -->
+<section class="state stage">
+  <div class="wrap">
+    <h2 class="h2 up" data-decode>Результат — <span class="dim">не талант, а система</span></h2>
+    <p class="lead up">Каждый урок заканчивается готовой работой. Не конспект, а файл, который можно публиковать.</p>
+  </div>
+</section>
+
+<!-- PROGRAM -->
+<section class="sec pad stage" id="program">
+  <div class="wrap">
+    <p class="label up mono">02 — Программа</p>
+    <h2 class="h2 up" data-decode>Что внутри курса</h2>
+
+    <ol class="mods acc">
+      <li class="up acc__i">
+        <button class="mod__q"><span class="mono">01</span><div><h3>Основы работы с нейросетями</h3><p>Как формулировать запрос, чтобы получить нужный результат с первого раза.</p></div><i class="mono mod__ico">+</i></button>
+        <div class="acc__a"><ul class="mod__lessons mono">
+          <li><b>Карта инструментов</b> — какая нейросеть под какую задачу и в каком порядке</li>
+          <li><b>Анатомия промпта</b> — структура сильного запроса: субъект, стиль, свет, референс</li>
+          <li><b>ChatGPT как продюсер</b> — техзадания и план проекта для других нейросетей</li>
+          <li><b>Библиотека промптов</b> — личная база, которая растёт с каждым модулем</li>
+        </ul></div>
+      </li>
+      <li class="up acc__i">
+        <button class="mod__q"><span class="mono">02</span><div><h3>Сайт с нуля</h3><p>Структура, тексты, дизайн и публикация. Собственный сайт в конце модуля.</p></div><i class="mono mod__ico">+</i></button>
+        <div class="acc__a"><ul class="mod__lessons mono">
+          <li><b>Планирование</b> — структура, цель и УТП будущего сайта</li>
+          <li><b>Тексты</b> — заголовки и офферы через нейросеть по брифу</li>
+          <li><b>Визуал</b> — картинки, иконки и палитра в едином стиле</li>
+          <li><b>Сборка страницы</b> — блоки в готовый сайт без кода</li>
+          <li><b>Публикация</b> — домен, хостинг, сайт доступен по ссылке</li>
+        </ul></div>
+      </li>
+      <li class="up acc__i">
+        <button class="mod__q"><span class="mono">03</span><div><h3>Генерация изображений</h3><p>Стиль, композиция, свет. Единый визуал для всего проекта.</p></div><i class="mono mod__ico">+</i></button>
+        <div class="acc__a"><ul class="mod__lessons mono">
+          <li><b>Основы Midjourney / Stable Diffusion</b> — параметры, версии, стили</li>
+          <li><b>Композиция и свет</b> — управление кадром через промпт</li>
+          <li><b>Консистентность персонажа</b> — одно лицо в разных сценах</li>
+          <li><b>Редактура и апскейл</b> — точечные правки и разрешение</li>
+          <li><b>Мудборд проекта</b> — единый стиль под видео и 3D</li>
+        </ul></div>
+      </li>
+      <li class="up acc__i">
+        <button class="mod__q"><span class="mono">04</span><div><h3>Видео и оживление кадров</h3><p>Из текста и фото — в движущийся ролик. Склейка, звук, субтитры.</p></div><i class="mono mod__ico">+</i></button>
+        <div class="acc__a"><ul class="mod__lessons mono">
+          <li><b>Text-to-video</b> — ролик из текстового описания с нуля</li>
+          <li><b>Image-to-video</b> — оживление статичных кадров</li>
+          <li><b>Монтаж и склейка</b> — тайминг, переходы, темп</li>
+          <li><b>Озвучка и субтитры</b> — голос и текст на экране</li>
+          <li><b>Форматы</b> — вертикаль, горизонталь, квадрат без пересъёмки</li>
+        </ul></div>
+      </li>
+      <li class="up acc__i">
+        <button class="mod__q"><span class="mono">05</span><div><h3>3D-сцены и анимация</h3><p>Объём, камера, движение. Ролики, которые выглядят дорого.</p></div><i class="mono mod__ico">+</i></button>
+        <div class="acc__a"><ul class="mod__lessons mono">
+          <li><b>От изображения к 3D</b> — объект без ручного моделирования</li>
+          <li><b>Blender-минимум</b> — импорт и расстановка сцены</li>
+          <li><b>Камера и движение</b> — облёт и анимация объектов</li>
+          <li><b>Рендер и экспорт</b> — готовый 3D-ролик</li>
+        </ul></div>
+      </li>
+      <li class="up acc__i">
+        <button class="mod__q"><span class="mono">06</span><div><h3>Упаковка под площадки</h3><p>Форматы, длина, обложки и текст под каждую платформу.</p></div><i class="mono mod__ico">+</i></button>
+        <div class="acc__a"><ul class="mod__lessons mono">
+          <li><b>Форматы площадок</b> — требования YouTube, Reels, TikTok, Telegram</li>
+          <li><b>Обложки и превью</b> — кликабельные превью нейросетью</li>
+          <li><b>Заголовки и описания</b> — тексты, которые увеличивают охват</li>
+          <li><b>Контент-план</b> — регулярность вместо хаоса публикаций</li>
+          <li><b>Монетизация</b> — партнёрки площадок и первые заказы со стороны</li>
+        </ul></div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="sec pad stage" id="platforms">
+  <div class="wrap">
+    <p class="label up mono">03 — Платформы</p>
+    <h2 class="h2 up" data-decode>Один материал —<br><span class="dim">все площадки</span></h2>
+    <p class="lead up">Учим сразу собирать контент так, чтобы он подходил под любой формат: вертикаль, горизонталь, квадрат.</p>
+    <ul class="tags up mono">
+      <li>YouTube</li><li>Shorts</li><li>Instagram</li><li>Reels</li>
+      <li>TikTok</li><li>Telegram</li><li>Сайт</li><li>Реклама</li>
+    </ul>
+  </div>
+</section>
+
+<!-- MONEY -->
+<section class="sec pad stage" id="money">
+  <div class="wrap">
+    <p class="label up mono">04 — Заработок</p>
+    <h2 class="h2 up" data-decode>Из зрителя —<br><span class="dim">в блогера, который зарабатывает</span></h2>
+    <p class="lead lead--wide up">
+      Навык нужен не ради навыка. Контент, который вы научитесь делать, площадки
+      монетизируют — а вы получаете доход с того, что раньше листали в ленте.
+    </p>
+
+    <div class="path depth">
+      <div class="path__s up"><span class="mono">01</span><h3>Первый ролик</h3><p>Вы публикуете работу, сделанную на курсе, а не «когда-нибудь потом».</p></div>
+      <div class="path__s up"><span class="mono">02</span><h3>Регулярность</h3><p>Нейросети снимают главный барьер — производство. Ролики выходят стабильно.</p></div>
+      <div class="path__s up"><span class="mono">03</span><h3>Аудитория</h3><p>Алгоритмы отдают охваты тем, кто публикуется часто и в нужном формате.</p></div>
+      <div class="path__s up"><span class="mono">04</span><h3>Доход</h3><p>Подключается монетизация площадок, приходят рекламодатели и заказы.</p></div>
+    </div>
+
+    <div class="money">
+      <div class="money__i up"><h4>YouTube</h4><p>Партнёрская программа: реклама в роликах и Shorts, спонсорство, суперчаты.</p></div>
+      <div class="money__i up"><h4>Instagram</h4><p>Реклама у брендов, бонусы за Reels, продажа своих услуг и продуктов.</p></div>
+      <div class="money__i up"><h4>TikTok</h4><p>Программы вознаграждения авторов, интеграции и партнёрские ссылки.</p></div>
+      <div class="money__i up"><h4>Заказы</h4><p>Ролики, сайты и 3D под клиента — теперь вы делаете это сами и берёте оплату.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="sec pad stage" id="pricing">
+  <div class="wrap">
+    <p class="label up mono">05 — Тарифы</p>
+    <h2 class="h2 up" data-decode>Выберите направление</h2>
+
+    <div class="offer up">
+      <span class="offer__badge mono">−50%</span>
+      <p class="offer__text">Специальное предложение — скидка 50% на все тарифы, если оплата пройдёт в течение 24 часов.</p>
+      <div class="offer__timer mono" id="offerTimer">24:00:00</div>
+    </div>
+
+    <div class="plans depth">
+      <div class="plan up">
+        <h3>Сайты</h3>
+        <p class="plan__desc">Создание сайтов с помощью нейросетей.</p>
+        <div class="plan__price"><span class="plan__old mono">20 000 ₸</span><span class="plan__new mono">10 000 ₸</span></div>
+        <ul class="mono">
+          <li>Модули 1–2</li>
+          <li>Готовый сайт в портфолио</li>
+          <li>Шаблоны и промпты</li>
+          <li>Доступ навсегда</li>
+        </ul>
+        <a href="#" class="btn btn--line w100">Выбрать</a>
+      </div>
+
+      <div class="plan up">
+        <h3>Видео и 3D</h3>
+        <p class="plan__desc">Ролики, анимация и объёмная графика.</p>
+        <div class="plan__price"><span class="plan__old mono">40 000 ₸</span><span class="plan__new mono">20 000 ₸</span></div>
+        <ul class="mono">
+          <li>Модули 3–5</li>
+          <li>Видео и 3D-ролик в портфолио</li>
+          <li>Пресеты и промпты</li>
+          <li>Доступ навсегда</li>
+        </ul>
+        <a href="#" class="btn btn--line w100">Выбрать</a>
+      </div>
+
+      <div class="plan plan--full up">
+        <span class="plan__tag mono">Полный доступ</span>
+        <h3>Всё вместе</h3>
+        <p class="plan__desc">Полный курс: сайты, видео, 3D и упаковка.</p>
+        <div class="plan__price"><span class="plan__old mono">60 000 ₸</span><span class="plan__new mono">30 000 ₸</span></div>
+        <ul class="mono">
+          <li>Все 6 модулей</li>
+          <li>Портфолио из всех форматов</li>
+          <li>Полная база промптов</li>
+          <li>Доступ навсегда</li>
+        </ul>
+        <a href="#" class="btn btn--fill w100">Выбрать</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="sec pad stage" id="faq">
+  <div class="wrap">
+    <p class="label up mono">06 — Вопросы</p>
+    <h2 class="h2 up" data-decode>Коротко о главном</h2>
+
+    <div class="acc">
+      <div class="acc__i up">
+        <button class="acc__q">Нужен ли опыт в дизайне или коде?<i class="mono">+</i></button>
+        <div class="acc__a"><p>Нет. Достаточно уверенно пользоваться компьютером и браузером. Всё остальное разбирается с нуля.</p></div>
+      </div>
+      <div class="acc__i up">
+        <button class="acc__q">Какие программы понадобятся?<i class="mono">+</i></button>
+        <div class="acc__a"><p>Только браузер. Все инструменты работают онлайн, мощный компьютер не нужен.</p></div>
+      </div>
+      <div class="acc__i up">
+        <button class="acc__q">Сколько длится курс?<i class="mono">+</i></button>
+        <div class="acc__a"><p>Уроки в записи — вы проходите их в своём темпе. Доступ остаётся навсегда.</p></div>
+      </div>
+      <div class="acc__i up">
+        <button class="acc__q">Можно ли купить одно направление, а потом второе?<i class="mono">+</i></button>
+        <div class="acc__a"><p>Да. Тарифы можно брать по отдельности в любом порядке.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta stage">
+  <div class="wrap">
+    <h2 class="h2 up" data-decode>Начните с первого ролика<br><span class="dim">уже сегодня</span></h2>
+    <form class="form up" id="form">
+      <input type="text" placeholder="Имя" required>
+      <input type="tel" placeholder="Телефон или Telegram" required>
+      <button class="btn btn--fill">Отправить</button>
+    </form>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot__row mono">
+    <span class="logo">NEURA<b>_</b></span>
+    <nav><a href="#learn">Чему учим</a><a href="#program">Программа</a><a href="#pricing">Тарифы</a></nav>
+    <span>© 2026</span>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
