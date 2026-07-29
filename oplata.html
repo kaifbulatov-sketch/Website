@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Оплата — NEURA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="pay-body">
+
+<header class="header">
+  <div class="wrap header__row">
+    <a href="index.html" class="logo">NEURA<b>_</b></a>
+    <a href="index.html#pricing" class="pay-back mono">← к тарифам</a>
+  </div>
+</header>
+
+<main class="pay-wrap">
+  <div class="pay-card">
+    <p class="label mono" id="payLabel">Тариф</p>
+    <h1 class="h2" id="payTitle">Загрузка…</h1>
+    <p class="pay-desc" id="payDesc"></p>
+    <div class="plan__price" id="payPrice"></div>
+    <ul class="mono pay-list" id="payList"></ul>
+    <label class="consent mono">
+      <input type="checkbox" id="payConsent">
+      Согласен(на) с <a href="oferta.html" target="_blank">офертой</a> и даю согласие на <a href="privacy.html" target="_blank">обработку персональных данных</a>
+    </label>
+    <a href="#" class="btn btn--fill w100" id="payBtn">Перейти к оплате</a>
+    <p class="pay-note mono" id="payAuthNote">Оплата картой любого банка через Robokassa — защищённое соединение, данные карты не проходят через сайт NEURA.</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="plans-data.js"></script>
+<script src="payment.js"></script>
+</body>
+</html>

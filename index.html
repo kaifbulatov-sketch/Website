@@ -25,6 +25,7 @@
       <a href="#platforms">Платформы</a>
       <a href="#money">Заработок</a>
       <a href="#pricing">Тарифы</a>
+      <a href="cabinet.html">Личный кабинет</a>
     </nav>
     <button class="burger" id="burger" aria-label="Меню"><span></span><span></span></button>
   </div>
@@ -209,8 +210,8 @@
 
     <div class="offer up">
       <span class="offer__badge mono">−50%</span>
-      <p class="offer__text">Специальное предложение — скидка 50% на все тарифы, если оплата пройдёт в течение 24 часов.</p>
-      <div class="offer__timer mono" id="offerTimer">24:00:00</div>
+      <p class="offer__text">Специальное предложение — скидка 50% на все тарифы до окончания акции.</p>
+      <div class="offer__timer mono" id="offerTimer">00:00:00</div>
     </div>
 
     <div class="plans depth">
@@ -224,7 +225,7 @@
           <li>Шаблоны и промпты</li>
           <li>Доступ навсегда</li>
         </ul>
-        <a href="#" class="btn btn--line w100">Выбрать</a>
+        <a href="oplata.html?plan=sites" class="btn btn--line w100">Выбрать</a>
       </div>
 
       <div class="plan up">
@@ -237,7 +238,7 @@
           <li>Пресеты и промпты</li>
           <li>Доступ навсегда</li>
         </ul>
-        <a href="#" class="btn btn--line w100">Выбрать</a>
+        <a href="oplata.html?plan=video3d" class="btn btn--line w100">Выбрать</a>
       </div>
 
       <div class="plan plan--full up">
@@ -251,7 +252,7 @@
           <li>Полная база промптов</li>
           <li>Доступ навсегда</li>
         </ul>
-        <a href="#" class="btn btn--fill w100">Выбрать</a>
+        <a href="oplata.html?plan=full" class="btn btn--fill w100">Выбрать</a>
       </div>
     </div>
   </div>
@@ -285,25 +286,33 @@
 </section>
 
 <!-- CTA -->
-<section class="cta stage">
+<section class="cta stage" id="cta">
   <div class="wrap">
-    <h2 class="h2 up" data-decode>Начните с первого ролика<br><span class="dim">уже сегодня</span></h2>
-    <form class="form up" id="form">
-      <input type="text" placeholder="Имя" required>
-      <input type="tel" placeholder="Телефон или Telegram" required>
-      <button class="btn btn--fill">Отправить</button>
-    </form>
+    <h2 class="h2 up" data-decode>Личный кабинет<br><span class="dim">доступ к купленному курсу</span></h2>
+    <p class="lead up cta-lead">Зарегистрируйтесь один раз — после оплаты любого тарифа материалы курса откроются здесь же, в личном кабинете.</p>
+    <div class="auth-card up" id="authCard">
+      <form class="form form--auth" id="authForm">
+        <input type="email" placeholder="Email" required autocomplete="email">
+        <input type="password" placeholder="Пароль (от 6 символов)" required minlength="6" autocomplete="new-password">
+        <button class="btn btn--fill w100" id="authSubmit" type="submit">Зарегистрироваться</button>
+      </form>
+      <p class="auth-toggle mono"><span id="authModeLabel">Уже есть аккаунт?</span> <a href="#" id="authToggle">Войти</a></p>
+      <p class="auth-msg mono" id="authMsg"></p>
+    </div>
   </div>
 </section>
 
 <footer class="foot">
   <div class="wrap foot__row mono">
     <span class="logo">NEURA<b>_</b></span>
-    <nav><a href="#learn">Чему учим</a><a href="#program">Программа</a><a href="#pricing">Тарифы</a></nav>
+    <nav><a href="#learn">Чему учим</a><a href="#program">Программа</a><a href="#pricing">Тарифы</a><a href="oferta.html">Оферта</a><a href="privacy.html">Конфиденциальность</a></nav>
     <span>© 2026</span>
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="auth.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

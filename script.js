@@ -618,27 +618,37 @@ if (clock) {
 
 const offerTimer = document.getElementById('offerTimer');
 if (offerTimer) {
-  const KEY = 'neura_offer_deadline';
-  const DAY = 24 * 60 * 60 * 1000;
-  let deadline = Number(localStorage.getItem(KEY));
-  if (!deadline || deadline <= Date.now()) {
-    deadline = Date.now() + DAY;
-    localStorage.setItem(KEY, String(deadline));
-  }
+  // Один реальный дедлайн для всех посетителей — не персональный фейковый таймер на 24 часа,
+  // который перезапускается сам по себе (это подпадало бы под "заведомо ложную рекламу").
+  // Когда решите провести новую акцию — просто поменяйте эту дату на новую и не раньше.
+  const OFFER_DEADLINE = new Date('2026-08-04T23:59:59+05:00').getTime();
+  const offerBanner = document.querySelector('.offer');
+
+  const setRegularPricing = () => {
+    document.querySelectorAll('.plan__price').forEach((price) => {
+      const oldEl = price.querySelector('.plan__old');
+      const newEl = price.querySelector('.plan__new');
+      if (newEl) newEl.remove();
+      if (oldEl) oldEl.classList.add('plan__old--regular');
+    });
+  };
+
+  let timerId;
   const tick = () => {
-    let left = deadline - Date.now();
+    const left = OFFER_DEADLINE - Date.now();
     if (left <= 0) {
-      deadline = Date.now() + DAY;
-      localStorage.setItem(KEY, String(deadline));
-      left = DAY;
+      if (timerId) clearInterval(timerId);
+      if (offerBanner) offerBanner.remove();
+      setRegularPricing();
+      return;
     }
     const h = Math.floor(left / 3600000);
     const m = Math.floor((left % 3600000) / 60000);
     const s = Math.floor((left % 60000) / 1000);
     offerTimer.textContent = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
   };
+  timerId = setInterval(tick, 1000);
   tick();
-  setInterval(tick, 1000);
 }
 
 const burger = document.getElementById('burger');
@@ -666,14 +676,4 @@ document.querySelectorAll('.acc__q, .mod__q').forEach(q => {
     if (open) { item.classList.remove('open'); body.style.maxHeight = null; }
     else { item.classList.add('open'); body.style.maxHeight = body.scrollHeight + 'px'; }
   });
-});
-
-const form = document.getElementById('form');
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const btn = form.querySelector('button');
-  const txt = btn.textContent;
-  btn.textContent = 'Принято';
-  form.reset();
-  setTimeout(() => { btn.textContent = txt; }, 2400);
 });
