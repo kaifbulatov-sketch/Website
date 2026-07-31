@@ -189,7 +189,7 @@ addEventListener('scroll', () => {
     const first = NEAR + (travel % RING_GAP);
     for (let z = first; z < FAR; z += RING_GAP) {
       const fade = 1 - z / FAR;
-      const a = fade * fade * 0.5;
+      const a = fade * fade * 0.78;
       if (a < 0.004) continue;
 
       const [ax, ay] = proj(-RX, -RY, z);
@@ -239,7 +239,7 @@ addEventListener('scroll', () => {
       const z0 = Z0 * Math.pow(FAR / Z0, b / BANDS);
       const z1 = Z0 * Math.pow(FAR / Z0, (b + 1) / BANDS);
       const fade = 1 - ((z0 + z1) * 0.5) / FAR;
-      const a = fade * fade * 0.38;
+      const a = fade * fade * 0.6;
       if (a < 0.005) continue;
 
       ctx.beginPath();
@@ -385,7 +385,7 @@ addEventListener('scroll', () => {
 })();
 
 /* ------------------------------------------------------------------
-   2. DIGITAL RAIN — columns of falling digits that chase the cursor
+   2. DIGITAL RAIN — columns of falling digits, evenly across the screen
 ------------------------------------------------------------------ */
 (function rain() {
   const cvs = document.getElementById('rain');
@@ -395,13 +395,11 @@ addEventListener('scroll', () => {
   const GLYPHS = '0101101001ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ0123456789';
   const SIZE = 15;          // glyph size in css px
   const STEP = SIZE + 3;    // column pitch
-  const MAX_CURSOR = 28;    // bright columns chasing the pointer
-  const MAX_AMBIENT = 24;   // faint columns raining everywhere, always
-  const SPREAD = 190;       // how far around the cursor columns can spawn
+  const MAX_AMBIENT = 40;   // faint columns raining everywhere, always
 
   let W = 0, H = 0;
   const drops = [];
-  let nCursor = 0, nAmbient = 0;
+  let nAmbient = 0;
 
   function resize() {
     W = cvs.width = Math.floor(innerWidth * DPR);
@@ -414,48 +412,46 @@ addEventListener('scroll', () => {
 
   const pick = () => GLYPHS[(Math.random() * GLYPHS.length) | 0];
 
-  function spawn(ambient) {
+  function spawn() {
     // snap to a column so the rain keeps its grid discipline
-    const col = ambient
-      ? Math.round((Math.random() * innerWidth) / STEP)
-      : Math.round((P.x + (Math.random() - 0.5) * SPREAD) / STEP);
-
-    const len = ambient ? 10 + ((Math.random() * 16) | 0)
-                        : 6 + ((Math.random() * 12) | 0);
+    const col = Math.round((Math.random() * innerWidth) / STEP);
+    const len = 10 + ((Math.random() * 16) | 0);
 
     drops.push({
       x: col * STEP,
-      // ambient columns enter from above the fold so the screen is never empty
-      y: ambient ? -Math.random() * innerHeight * 0.6
-                 : P.y + (Math.random() - 0.5) * 90,
-      v: ambient ? 1.1 + Math.random() * 2.2 : 1.7 + Math.random() * 3.4,
+      // columns enter from above the fold so the screen is never empty
+      y: -Math.random() * innerHeight * 0.6,
+      v: 1.1 + Math.random() * 2.2,
       chars: Array.from({ length: len }, pick),
       life: 1,
-      // ambient rain decays slowly — it has a whole screen to cross
-      decay: ambient ? 0.0016 : 0.0045,
-      amb: !!ambient
+      // the rain decays slowly — it has a whole screen to cross
+      decay: 0.0016
     });
-    ambient ? nAmbient++ : nCursor++;
+    nAmbient++;
   }
 
-  // Pre-seed the ambient rain mid-fall, otherwise the first couple of
-  // seconds after load are an empty screen while columns accumulate.
+  // Pre-seed the rain mid-fall, otherwise the first couple of seconds
+  // after load are an empty screen while columns accumulate.
   for (let i = 0; i < MAX_AMBIENT; i++) {
-    spawn(true);
+    spawn();
     const d = drops[drops.length - 1];
     d.y = Math.random() * innerHeight;
     d.life = 0.45 + Math.random() * 0.55;
   }
 
   function frame() {
-    // fade the previous frame instead of clearing — that's the trail
-    // lower alpha = longer trails; faint ambient glyphs need the extra dwell
-    ctx.fillStyle = 'rgba(7,6,15,0.12)';
+    // Fade the previous frame instead of clearing — that's the trail.
+    // This MUST erase alpha rather than paint dark over it: this canvas sits
+    // on top of the tunnel, so filling with an opaque-ish colour accumulates
+    // into a solid sheet within a few frames and hides the corridor entirely.
+    // destination-out lowers existing alpha and leaves untouched pixels clear.
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,0.085)';
     ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
 
-    // ambient rain runs regardless of the pointer — the screen is never static
-    if (nAmbient < MAX_AMBIENT && Math.random() < 0.28) spawn(true);
-    if (P.inside && nCursor < MAX_CURSOR && Math.random() < 0.55) spawn(false);
+    // the rain runs independently of the pointer — the screen is never static
+    if (nAmbient < MAX_AMBIENT && Math.random() < 0.5) spawn();
 
     ctx.font = `${SIZE * DPR}px ${getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace'}`;
     ctx.textBaseline = 'top';
@@ -467,7 +463,7 @@ addEventListener('scroll', () => {
 
       if (d.life <= 0 || d.y - d.chars.length * STEP > innerHeight) {
         drops.splice(i, 1);
-        d.amb ? nAmbient-- : nCursor--;
+        nAmbient--;
         continue;
       }
 
@@ -478,14 +474,14 @@ addEventListener('scroll', () => {
         const y = d.y - j * STEP;
         if (y < -SIZE || y > innerHeight) continue;
         const tail = 1 - j / d.chars.length;
-        // ambient columns stay well under the type; cursor columns lead
-        const a = tail * d.life * (d.amb ? 0.42 : 1);
+        // the rain stays under the type — the scrim keeps the centre readable
+        const a = tail * d.life * 0.52;
 
         if (j === 0) {
           // bright head, aqua halo
           ctx.fillStyle = `rgba(232,241,255,${Math.min(1, a * 1.5)})`;
           ctx.shadowColor = 'rgba(79,227,208,0.9)';
-          ctx.shadowBlur = (d.amb ? 6 : 12) * DPR;
+          ctx.shadowBlur = 6 * DPR;
         } else {
           // tail drifts aqua -> violet as it fades, so it never reads as flat
           const k = j / d.chars.length;
