@@ -19,7 +19,7 @@
   const btn = document.getElementById('payBtn');
   const consent = document.getElementById('payConsent');
   const authNote = document.getElementById('payAuthNote');
-  const link = ROBOKASSA_LINKS[key];
+  const link = KASPI_LINKS[key];
 
   const disableBtn = (text) => {
     btn.href = '#';
@@ -80,8 +80,13 @@
         return;
       }
 
+      // Номер заказа уходит в Kaspi, чтобы вернуться обратно в вебхуке и
+      // сопоставиться со строкой в purchases.
+      // ВАЖНО: имя параметра сверить с документацией, которую Kaspi выдаёт
+      // после подключения Webpay — у разных типов интеграции оно отличается.
+      // Пока ссылки пустые, эта ветка не выполняется (см. disableBtn выше).
       const sep = link.includes('?') ? '&' : '?';
-      location.href = link + sep + 'InvId=' + invId;
+      location.href = link + sep + KASPI_ORDER_PARAM + '=' + invId;
     });
   });
 })();
