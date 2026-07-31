@@ -78,6 +78,19 @@ button{ font:inherit; color:inherit; background:none; border:none; cursor:pointe
   50%  { transform:translate3d(0,6px,-22px); }
   100% { transform:translate3d(0,0,0); }
 }
+/* 2D-only drift for cards that hold clickable controls — translateZ under perspective
+   visually resizes the box as it floats, so its hover/click area drifts out of sync
+   with what's on screen. Y-only motion keeps the box size fixed at all times. */
+@keyframes floatY{
+  0%   { transform:translateY(0); }
+  50%  { transform:translateY(-7px); }
+  100% { transform:translateY(0); }
+}
+@keyframes floatYalt{
+  0%   { transform:translateY(0); }
+  50%  { transform:translateY(6px); }
+  100% { transform:translateY(0); }
+}
 @keyframes breathe{
   0%,100%{ opacity:.75; }
   50%    { opacity:1; }
@@ -93,9 +106,9 @@ button{ font:inherit; color:inherit; background:none; border:none; cursor:pointe
 .item.in:nth-child(3), .path__s.in:nth-child(3){ animation:floatZ 13s var(--e) 1.4s infinite; }
 .path__s.in:nth-child(4){ animation:floatZalt 10.5s var(--e) 1.6s infinite; }
 
-.plan.in{ animation:floatZ 11s var(--e) 1s infinite; transform-style:preserve-3d; }
-.plan.in:nth-child(2){ animation:floatZalt 13.5s var(--e) 1.3s infinite; }
-.plan.in:nth-child(3){ animation:floatZ 15s var(--e) 1.6s infinite; }
+.plan.in{ animation:floatY 11s var(--e) 1s infinite; }
+.plan.in:nth-child(2){ animation:floatYalt 13.5s var(--e) 1.3s infinite; }
+.plan.in:nth-child(3){ animation:floatY 15s var(--e) 1.6s infinite; }
 
 .money__i.in{ animation:floatZalt 10s var(--e) 1s infinite; }
 .money__i.in:nth-child(2){ animation:floatZ 12s var(--e) 1.2s infinite; }
@@ -142,7 +155,7 @@ p{ font-size:14.8px; color:var(--dim); }
 }
 .btn--fill{ background:var(--g); color:#06111a; border-color:var(--g); font-weight:600; }
 .btn--fill:hover{ background:transparent; color:var(--g); box-shadow:0 0 26px rgba(79,227,208,.28); }
-.btn--line:hover{ border-color:var(--g); color:var(--g); box-shadow:0 0 26px rgba(79,227,208,.18); }
+.btn--line:hover{ background:rgba(79,227,208,.1); border-color:var(--g); color:var(--g); box-shadow:0 0 26px rgba(79,227,208,.18); }
 .w100{ width:100%; }
 .row{ display:flex; gap:12px; flex-wrap:wrap; }
 

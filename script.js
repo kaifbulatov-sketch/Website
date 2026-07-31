@@ -618,10 +618,20 @@ if (clock) {
 
 const offerTimer = document.getElementById('offerTimer');
 if (offerTimer) {
-  // Один реальный дедлайн для всех посетителей — не персональный фейковый таймер на 24 часа,
-  // который перезапускается сам по себе (это подпадало бы под "заведомо ложную рекламу").
-  // Когда решите провести новую акцию — просто поменяйте эту дату на новую и не раньше.
-  const OFFER_DEADLINE = new Date('2026-08-04T23:59:59+05:00').getTime();
+  // Настоящее окно в 24 часа на конкретного посетителя, а не фейковый таймер, который
+  // тихо перезапускается сам по себе при каждом обновлении страницы (это была бы
+  // "заведомо ложная реклама"). Дедлайн запрашивается у promo-timer Edge Function
+  // (supabase-setup/promo-timer), которая заводит его один раз на IP посетителя и
+  // потом всегда отдаёт тот же самый — обновление страницы или повторный заход с
+  // того же IP не продлевают и не обнуляют отсчёт. Когда время выходит, цена на
+  // сайте по-настоящему возвращается к обычной (setRegularPricing) — скидка правда кончается.
+  //
+  // Пока promo-timer не задеплоена в Supabase (см. supabase-setup/README.md, пункт 3),
+  // используется деградированный вариант: дедлайн на 24 часа хранится в localStorage
+  // этого браузера — переживает обновление страницы, но не переживает смену браузера/
+  // устройства или инкогнито с того же IP.
+  const LOCAL_KEY = 'neura_promo_deadline';
+  const FALLBACK_MS = 24 * 3600000;
   const offerBanner = document.querySelector('.offer');
 
   const setRegularPricing = () => {
@@ -633,9 +643,11 @@ if (offerTimer) {
     });
   };
 
-  let timerId;
+  let timerId = null;
+  let deadlineMs = Number(localStorage.getItem(LOCAL_KEY)) || null;
+
   const tick = () => {
-    const left = OFFER_DEADLINE - Date.now();
+    const left = deadlineMs - Date.now();
     if (left <= 0) {
       if (timerId) clearInterval(timerId);
       if (offerBanner) offerBanner.remove();
@@ -647,8 +659,34 @@ if (offerTimer) {
     const s = Math.floor((left % 60000) / 1000);
     offerTimer.textContent = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
   };
-  timerId = setInterval(tick, 1000);
-  tick();
+
+  const setDeadline = (ms) => {
+    if (ms === deadlineMs) return;
+    deadlineMs = ms;
+    localStorage.setItem(LOCAL_KEY, String(ms));
+    if (timerId) clearInterval(timerId);
+    timerId = setInterval(tick, 1000);
+    tick();
+  };
+
+  // Локальный кэш даёт мгновенную отрисовку без "прыжка" цифр после ответа сервера.
+  if (deadlineMs) {
+    timerId = setInterval(tick, 1000);
+    tick();
+  }
+
+  const useLocalFallback = () => {
+    if (!deadlineMs) setDeadline(Date.now() + FALLBACK_MS);
+  };
+
+  if (SUPABASE_CONFIGURED) {
+    fetch(`${SUPABASE_URL}/functions/v1/promo-timer`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('bad response'))))
+      .then(({ deadline }) => setDeadline(new Date(deadline).getTime()))
+      .catch(useLocalFallback);
+  } else {
+    useLocalFallback();
+  }
 }
 
 const burger = document.getElementById('burger');

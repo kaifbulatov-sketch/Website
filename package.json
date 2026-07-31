@@ -1,0 +1,7 @@
+{
+  "name": "neura-website",
+  "private": true,
+  "scripts": {
+    "build": "node build-legal.js"
+  }
+}

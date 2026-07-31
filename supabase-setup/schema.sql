@@ -24,3 +24,16 @@ create policy "insert own purchases"
 
 -- Обновлять status на 'paid' может только сервисная роль (Edge Function с service_role key),
 -- обычные пользователи такого права не получают — политики update нет намеренно.
+
+-- Таймер акции -50%: у каждого IP — своё настоящее окно в 24 часа с первого визита.
+-- Строка создаётся один раз (см. promo-timer Edge Function) и больше не трогается,
+-- поэтому обновление страницы или повторный заход с того же IP не продлевают и не сбрасывают время.
+create table if not exists promo_windows (
+  ip text primary key,
+  deadline timestamptz not null default (now() + interval '24 hours'),
+  created_at timestamptz not null default now()
+);
+
+alter table promo_windows enable row level security;
+-- Политик для anon/authenticated нет специально — таблицу читает и пишет только
+-- promo-timer Edge Function через service_role key (обходит RLS).
