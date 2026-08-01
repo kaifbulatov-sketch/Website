@@ -337,7 +337,9 @@ p{ font-size:14.8px; color:var(--dim); }
 }
 .acc__q:hover{ color:var(--g); }
 .acc__q i{ font-style:normal; font-size:18px; color:var(--g); transition:transform .4s var(--e); }
-.acc__i.open .acc__q i{ transform:rotate(45deg); }
+/* Строго прямой потомок: в кабинете аккордеон вложенный, и без `>` открытый
+   этап поворачивал бы «плюсы» всех своих уроков, будто они тоже открыты. */
+.acc__i.open > .acc__q i{ transform:rotate(45deg); }
 .acc__a{ max-height:0; overflow:hidden; transition:max-height .45s var(--e); }
 .acc__a p{ padding-bottom:26px; max-width:620px; }
 
@@ -430,6 +432,13 @@ p{ font-size:14.8px; color:var(--dim); }
   min-height:calc(100vh - 90px); display:flex; align-items:center; justify-content:center;
   padding:60px 22px;
 }
+/* Шапка фиксированная, а класс .stuck (фон + блюр при прокрутке) вешает script.js,
+   которого на страницах оплаты и кабинета нет. Раньше это не было видно — они не
+   прокручивались; кабинет с раскрытыми уроками длинный, и прозрачная шапка
+   наезжала на текст. Поэтому здесь фон у шапки постоянный. */
+.pay-body .header{
+  background:rgba(7,6,15,.86); backdrop-filter:blur(14px); border-color:var(--line-soft);
+}
 .pay-card{
   width:100%; max-width:460px; padding:44px 38px;
   border:1px solid var(--line); background:rgba(18,14,38,.5);
@@ -489,17 +498,22 @@ p{ font-size:14.8px; color:var(--dim); }
 .cab-card--unlocked .acc .acc{ margin-top:0; border-top:none; }
 .cab-card--unlocked .acc .acc .acc__q{ padding-left:18px; font-size:14.5px; }
 .cab-card--unlocked .acc .acc .acc__i{ border-bottom:1px solid var(--line-soft); }
+/* Текст урока выравнивается по его же заголовку, а не по краю карточки. */
+.cab-card--unlocked .acc .acc .cab-body{ padding-left:18px; }
 .cab-lesson-stage-range{ font-weight:400; color:var(--dim); font-size:12px; margin-left:10px; }
 .cab-callout{ margin:0 0 16px; font-size:13.6px; line-height:1.7; }
 .cab-callout__label{ color:var(--g); }
 .cab-callout--result .cab-callout__label{ color:var(--pink); }
-.acc__a h4{ font-size:13px; color:var(--violet); margin:20px 0 10px; letter-spacing:.02em; }
-.acc__a h4:first-child{ margin-top:6px; }
-.acc__a ol,.acc__a ul{ margin:0 0 18px 20px; }
-.acc__a ol{ list-style:decimal; }
-.acc__a ul{ list-style:disc; }
-.acc__a ol li,.acc__a ul li{ font-size:13.6px; line-height:1.65; padding:4px 0; color:var(--dim); }
-.acc__a ol li b,.acc__a ul li b{ color:var(--ink); font-weight:500; }
+/* Только внутри .cab-body (текст урока). Шире брать нельзя: панель этапа —
+   тоже .acc__a, но внутри неё лежит вложенный <ul class="acc"> с уроками,
+   которому маркеры списка и отступы не нужны. */
+.cab-body h4{ font-size:13px; color:var(--violet); margin:20px 0 10px; letter-spacing:.02em; }
+.cab-body h4:first-child{ margin-top:6px; }
+.cab-body ol,.cab-body ul{ margin:0 0 18px 20px; }
+.cab-body ol{ list-style:decimal; }
+.cab-body ul{ list-style:disc; }
+.cab-body ol li,.cab-body ul li{ font-size:13.6px; line-height:1.65; padding:4px 0; color:var(--dim); }
+.cab-body ol li b,.cab-body ul li b{ color:var(--ink); font-weight:500; }
 .cab-table{ width:100%; border-collapse:collapse; margin:6px 0 20px; font-size:12.4px; }
 .cab-table th,.cab-table td{
   border:1px solid var(--line-soft); padding:8px 10px; text-align:left; color:var(--dim);
