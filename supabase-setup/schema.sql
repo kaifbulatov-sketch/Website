@@ -1,4 +1,7 @@
--- Выполнить один раз в Supabase → SQL Editor.
+-- Выполнить в Supabase → SQL Editor. Скрипт можно запускать повторно:
+-- таблицы создаются через if not exists, политики пересоздаются (create policy
+-- сам по себе падает с ошибкой, если политика уже есть, — а README просит
+-- перезапустить этот файл после добавления promo_windows).
 
 create table if not exists purchases (
   id uuid primary key default gen_random_uuid(),
@@ -13,11 +16,13 @@ create table if not exists purchases (
 alter table purchases enable row level security;
 
 -- Пользователь видит только свои покупки.
+drop policy if exists "select own purchases" on purchases;
 create policy "select own purchases"
   on purchases for select
   using (auth.uid() = user_id);
 
 -- Пользователь может создать (только) свою заявку на оплату со статусом pending.
+drop policy if exists "insert own purchases" on purchases;
 create policy "insert own purchases"
   on purchases for insert
   with check (auth.uid() = user_id and status = 'pending');
