@@ -81,10 +81,75 @@
      скрипты сразу при входе в кабинет — при том, что панели уроков закрыты
      и ни один из них не виден.
   ------------------------------------------------------------------ */
-  function renderVideo(lesson) {
+  /* ------------------------------------------------------------------
+     Обложка урока. Рисуется как SVG прямо из данных урока, а не хранится
+     картинкой: 28 файлов пришлось бы перерисовывать вручную при каждой
+     правке названия, и они бы разъехались с содержимым. Здесь обложка не
+     может устареть — заголовок на ней тот же, что в аккордеоне.
+     Размер холста 1600×900 (16:9) — тот же, что просят площадки под превью,
+     так что этот же SVG подойдёт и на обложку ролика.
+  ------------------------------------------------------------------ */
+  const COVER_FF = 'Helvetica Neue, Inter, Arial, sans-serif';
+  const COVER_MONO = 'Consolas, Menlo, monospace';
+
+  // SVG не переносит текст сам — режем по словам. Ширина подобрана под
+  // font-size 76 в поле 1360px.
+  function wrapCoverTitle(text, maxChars, maxLines) {
+    const lines = [];
+    let cur = '';
+    String(text).split(/\s+/).forEach((w) => {
+      const next = cur ? cur + ' ' + w : w;
+      if (next.length > maxChars && cur) { lines.push(cur); cur = w; } else { cur = next; }
+    });
+    if (cur) lines.push(cur);
+    if (lines.length > maxLines) {
+      lines.length = maxLines;
+      lines[maxLines - 1] = lines[maxLines - 1].slice(0, maxChars - 1) + '…';
+    }
+    return lines;
+  }
+
+  function renderLessonCover(lesson, stageTitle) {
+    const n = lesson.n;
+    const num = String(n).padStart(2, '0');
+    const title = wrapCoverTitle(lesson.title, 28, 3)
+      .map((l, i) => '<text x="120" y="' + (524 + i * 92) + '" fill="#e8e7f6" font-family="' +
+        COVER_FF + '" font-size="76" font-weight="300">' + escapeHtml(l) + '</text>')
+      .join('');
+
+    return (
+      '<svg class="cab-cover" viewBox="0 0 1600 900" role="img" aria-label="Обложка урока ' + n + '">' +
+        '<defs>' +
+          '<pattern id="cg' + n + '" width="80" height="80" patternUnits="userSpaceOnUse">' +
+            '<path d="M80 0H0V80" fill="none" stroke="rgba(155,123,255,.12)" stroke-width="1"/>' +
+          '</pattern>' +
+          '<linearGradient id="cv' + n + '" x1="0" y1="0" x2="1" y2="1">' +
+            '<stop offset="0" stop-color="#4fe3d0" stop-opacity=".10"/>' +
+            '<stop offset="1" stop-color="#9b7bff" stop-opacity="0"/>' +
+          '</linearGradient>' +
+        '</defs>' +
+        '<rect width="1600" height="900" fill="#07060f"/>' +
+        '<rect width="1600" height="900" fill="url(#cg' + n + ')"/>' +
+        '<rect width="1600" height="900" fill="url(#cv' + n + ')"/>' +
+        '<text x="120" y="196" font-family="' + COVER_MONO + '" font-size="26" letter-spacing="9" fill="#54508a">УРОК</text>' +
+        '<text x="120" y="368" font-family="' + COVER_MONO + '" font-size="150" fill="#4fe3d0">' + num + '</text>' +
+        '<rect x="120" y="410" width="118" height="3" fill="#f472c8"/>' +
+        title +
+        '<text x="120" y="812" font-family="' + COVER_MONO + '" font-size="23" letter-spacing="5" fill="#54508a">' +
+          escapeHtml(String(stageTitle || '').toUpperCase()) + '</text>' +
+        '<text x="1480" y="812" text-anchor="end" font-family="' + COVER_MONO + '" font-size="30" letter-spacing="8" fill="#e8e7f6">' +
+          'NEURA<tspan fill="#4fe3d0">_</tspan></text>' +
+      '</svg>'
+    );
+  }
+
+  function renderVideo(lesson, stageTitle) {
     const src = lesson.video;
     if (!src) {
-      return '<div class="cab-video cab-video--empty"><span class="mono">Видео к уроку скоро появится</span></div>';
+      // Видео ещё нет — на его месте обложка, а не пустая рамка: слот сразу
+      // выглядит законченным, и высота у него та же, что будет у плеера.
+      return '<div class="cab-video cab-video--empty">' + renderLessonCover(lesson, stageTitle) +
+        '<span class="cab-video__soon mono">Видео скоро</span></div>';
     }
     const frame = (url, allow) =>
       '<div class="cab-video"><iframe data-src="' + escapeHtml(url) + '" allow="' + allow +
@@ -103,8 +168,8 @@
     return '<div class="cab-video"><video controls preload="none" src="' + escapeHtml(src) + '"></video></div>';
   }
 
-  function renderLessonAccordionItem(lesson) {
-    const body = renderVideo(lesson) + lesson.blocks.map(renderBlock).join('');
+  function renderLessonAccordionItem(lesson, stageTitle) {
+    const body = renderVideo(lesson, stageTitle) + lesson.blocks.map(renderBlock).join('');
     return (
       '<li class="acc__i">' +
         '<button type="button" class="acc__q">' +
@@ -117,7 +182,7 @@
   }
 
   function renderStageAccordionItem(stage) {
-    const lessons = stage.lessons.map((l) => renderLessonAccordionItem(l)).join('');
+    const lessons = stage.lessons.map((l) => renderLessonAccordionItem(l, stage.title)).join('');
     return (
       '<li class="acc__i">' +
         '<button type="button" class="acc__q">' +
@@ -133,7 +198,8 @@
     let bodyHtml;
     if (card.stages.length === 1) {
       // Единственный этап — сразу плоский список уроков, без лишнего внешнего уровня.
-      bodyHtml = '<ul class="acc">' + card.stages[0].lessons.map((l) => renderLessonAccordionItem(l)).join('') + '</ul>';
+      bodyHtml = '<ul class="acc">' +
+        card.stages[0].lessons.map((l) => renderLessonAccordionItem(l, card.stages[0].title)).join('') + '</ul>';
     } else {
       bodyHtml = '<ul class="acc">' + card.stages.map(renderStageAccordionItem).join('') + '</ul>';
     }
