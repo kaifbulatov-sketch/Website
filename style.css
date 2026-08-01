@@ -450,12 +450,67 @@ p{ font-size:14.8px; color:var(--dim); }
 }
 
 /* ===== cabinet ===== */
-.cabinet-card{ max-width:640px; text-align:left; }
+.cabinet-card{ max-width:780px; text-align:left; }
 .cabinet-plans{ display:flex; flex-direction:column; gap:22px; margin-top:10px; }
 .cabinet-plan{ padding:24px; border:1px solid var(--line); background:rgba(79,227,208,.03); }
 .cabinet-plan h3{ margin-bottom:8px; }
 .cabinet-plan .pay-list{ margin:16px 0 14px; }
 .cabinet-note{ font-size:11px; color:var(--faint); }
+
+/* ===== course cards (cabinet) ===== */
+.cab-cards{ display:flex; flex-direction:column; gap:22px; margin-top:18px; }
+.cab-card{
+  border:1px solid var(--line); background:rgba(18,14,38,.5); padding:30px 32px;
+}
+.cab-card__head{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+.cab-card__range{ font-size:11px; letter-spacing:.2em; color:var(--g); opacity:.6; text-transform:uppercase; }
+.cab-card__desc{ margin:8px 0 0; font-size:13.6px; max-width:520px; }
+
+/* --- locked state --- */
+.cab-card--locked{ opacity:.92; }
+.cab-lock{ flex-shrink:0; width:26px; height:29px; color:var(--faint); shape-rendering:crispEdges; }
+.cab-card--locked .cab-card__range{ color:var(--faint); opacity:1; }
+.cab-teaser{ margin-top:22px; opacity:.55; }
+.cab-teaser-stage{ font-size:11px; letter-spacing:.14em; color:var(--dim); text-transform:uppercase; margin:14px 0 6px; }
+.cab-teaser-stage:first-child{ margin-top:0; }
+.cab-teaser-list{ display:flex; flex-direction:column; gap:6px; }
+.cab-teaser-list li{ font-size:13px; line-height:1.5; }
+.cab-card__bonus-note{
+  margin:20px 0 14px; padding:12px 14px; font-size:12px; color:var(--dim);
+  border:1px solid var(--line-soft); background:rgba(155,123,255,.05);
+}
+.cab-card__buy{ margin-top:22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.cab-card__buy .plan__old{ font-size:14px; }
+.cab-card__buy .plan__new{ font-size:20px; }
+
+/* --- unlocked state: two-level accordion, reuses .acc/.acc__i/.acc__q/.acc__a --- */
+.cab-card--unlocked .cab-lock{ color:var(--g); }
+.cab-card--unlocked > .acc{ margin-top:18px; border-top:1px solid var(--line); }
+.cab-card--unlocked .acc .acc{ margin-top:0; border-top:none; }
+.cab-card--unlocked .acc .acc .acc__q{ padding-left:18px; font-size:14.5px; }
+.cab-card--unlocked .acc .acc .acc__i{ border-bottom:1px solid var(--line-soft); }
+.cab-lesson-stage-range{ font-weight:400; color:var(--dim); font-size:12px; margin-left:10px; }
+.cab-callout{ margin:0 0 16px; font-size:13.6px; line-height:1.7; }
+.cab-callout__label{ color:var(--g); }
+.cab-callout--result .cab-callout__label{ color:var(--pink); }
+.acc__a h4{ font-size:13px; color:var(--violet); margin:20px 0 10px; letter-spacing:.02em; }
+.acc__a h4:first-child{ margin-top:6px; }
+.acc__a ol,.acc__a ul{ margin:0 0 18px 20px; }
+.acc__a ol{ list-style:decimal; }
+.acc__a ul{ list-style:disc; }
+.acc__a ol li,.acc__a ul li{ font-size:13.6px; line-height:1.65; padding:4px 0; color:var(--dim); }
+.acc__a ol li b,.acc__a ul li b{ color:var(--ink); font-weight:500; }
+.cab-table{ width:100%; border-collapse:collapse; margin:6px 0 20px; font-size:12.4px; }
+.cab-table th,.cab-table td{
+  border:1px solid var(--line-soft); padding:8px 10px; text-align:left; color:var(--dim);
+}
+.cab-table th{ color:var(--g); font-weight:400; letter-spacing:.02em; }
+.cab-body code{ font-family:var(--mono); font-size:.92em; color:var(--g); }
+@media (max-width:560px){
+  .cab-card{ padding:24px 20px; }
+  .cab-table{ font-size:11.5px; }
+  .cab-table th,.cab-table td{ padding:6px 7px; }
+}
 
 /* ===== legal docs ===== */
 .legal{ max-width:760px; padding:clamp(60px,10vh,110px) 22px 100px; }
