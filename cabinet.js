@@ -71,8 +71,40 @@
     }
   }
 
+  /* ------------------------------------------------------------------
+     Видео урока. Ссылка в данных — одна строка (см. course-content.js),
+     тип определяется по ней самой, чтобы в данных не появлялось лишнего поля,
+     которое можно забыть или проставить неверно.
+
+     iframe грузится лениво: src подставляется при первом раскрытии урока
+     (см. bindAccordions). Иначе 28 плееров YouTube начали бы тянуть свои
+     скрипты сразу при входе в кабинет — при том, что панели уроков закрыты
+     и ни один из них не виден.
+  ------------------------------------------------------------------ */
+  function renderVideo(lesson) {
+    const src = lesson.video;
+    if (!src) {
+      return '<div class="cab-video cab-video--empty"><span class="mono">Видео к уроку скоро появится</span></div>';
+    }
+    const frame = (url, allow) =>
+      '<div class="cab-video"><iframe data-src="' + escapeHtml(url) + '" allow="' + allow +
+      '" allowfullscreen title="Видео урока"></iframe></div>';
+
+    const yt = src.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{11})/);
+    if (yt) {
+      return frame('https://www.youtube-nocookie.com/embed/' + yt[1],
+        'accelerometer; encrypted-media; picture-in-picture; fullscreen');
+    }
+    const vm = src.match(/vimeo\.com\/(\d+)/);
+    if (vm) {
+      return frame('https://player.vimeo.com/video/' + vm[1], 'fullscreen; picture-in-picture');
+    }
+    // Прямая ссылка на файл: preload="none" — не тянуть ничего, пока не нажали play.
+    return '<div class="cab-video"><video controls preload="none" src="' + escapeHtml(src) + '"></video></div>';
+  }
+
   function renderLessonAccordionItem(lesson) {
-    const body = lesson.blocks.map(renderBlock).join('');
+    const body = renderVideo(lesson) + lesson.blocks.map(renderBlock).join('');
     return (
       '<li class="acc__i">' +
         '<button type="button" class="acc__q">' +
@@ -190,6 +222,17 @@
         item.classList.remove('open');
         body.style.maxHeight = null;
       } else {
+        // Подключить плееры этого урока (и только его — вложенные уроки
+        // раскрывающегося этапа остаются закрытыми, грузить их незачем).
+        // Высота при этом не меняется: .cab-video держит aspect-ratio 16/9
+        // ещё до загрузки, так что max-height ниже считается уже верно.
+        const own = body.querySelector(':scope > .cab-body');
+        if (own) {
+          own.querySelectorAll('iframe[data-src]').forEach((f) => {
+            f.src = f.dataset.src;
+            f.removeAttribute('data-src');
+          });
+        }
         item.classList.add('open');
         body.style.maxHeight = body.scrollHeight + 'px';
       }
