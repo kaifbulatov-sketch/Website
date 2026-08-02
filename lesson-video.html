@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Видео-презентация урока — NEURA</title>
+<style>
+  :root{
+    --bg:#07060f; --ink:#e8e7f6; --dim:#9490bd; --faint:#54508a;
+    --g:#4fe3d0; --violet:#9b7bff; --line-soft:rgba(155,123,255,.12);
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:#000; color:var(--ink); font-family:var(--mono);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:16px; padding:20px; overflow:hidden;
+  }
+  #stage{
+    width:min(100%,1120px); aspect-ratio:16/9; background:var(--bg);
+    border:1px solid var(--line-soft); position:relative;
+  }
+  #cv{ width:100%; height:100%; display:block; }
+  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  button,select{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    padding:11px 18px; background:transparent; color:var(--ink);
+    border:1px solid rgba(79,227,208,.35); cursor:pointer; transition:.25s;
+  }
+  select{ text-transform:none; letter-spacing:.04em; max-width:340px; }
+  button:hover:not(:disabled){ background:rgba(79,227,208,.1); border-color:var(--g); color:var(--g); }
+  button:disabled{ opacity:.35; cursor:default; }
+  .hint{ font-size:11px; letter-spacing:.1em; color:var(--faint); text-align:center; line-height:1.9; }
+  .hint b{ color:var(--dim); font-weight:400; }
+  #status{ font-size:11px; letter-spacing:.13em; color:var(--g); min-height:16px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+
+<div class="bar">
+  <select id="pick"></select>
+  <button id="play">Проиграть</button>
+  <button id="rec">Записать в файл</button>
+</div>
+<p id="status"></p>
+<p class="hint">
+  Слайды строятся из текста урока в <b>course-content.js</b> — правите урок, видео меняется само.<br>
+  Холст <b>1920×1080</b>, запись в <b>.webm</b>. Во время записи не переключайтесь на другую вкладку.
+</p>
+
+<script src="course-content.js"></script>
+<script>
+/* Видео-презентация урока.
+
+   Слайды не пишутся руками, а собираются из тех же данных, что показывает
+   кабинет (COURSE_CARDS в course-content.js). Поэтому текст в ролике не может
+   разойтись с текстом урока: правится один источник.
+
+   Техника та же, что у intro.html: всё рисуется на canvas 1920×1080, поэтому
+   страница умеет записать ролик сама через captureStream + MediaRecorder —
+   без сторонней программы захвата и без курсора в кадре. */
+
+const W = 1920, H = 1080;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const MONO = "'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
+const SANS = 'Helvetica Neue, Inter, Arial, sans-serif';
+
+const IN = 550;    // появление слайда
+const OUT = 380;   // уход слайда
+const PAD = 140;   // поля кадра
+
+/* ---------- сбор слайдов из данных урока ---------- */
+
+// В данных лежит готовый HTML (<b>, <code>). На холсте разметки нет — снимаем
+// теги и возвращаем сущности, иначе в кадре будут «&nbsp;» и «<b>».
+function plain(html) {
+  const d = document.createElement('div');
+  d.innerHTML = String(html);
+  return (d.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function findLesson(n) {
+  for (const card of COURSE_CARDS) {
+    for (const stage of card.stages) {
+      const lesson = stage.lessons.find((l) => l.n === n);
+      if (lesson) return { lesson, stage, card };
+    }
+  }
+  return null;
+}
+
+/* Один блок урока — один слайд, кроме списков: там каждый пункт получает
+   свой слайд. Пункт «Действия» — это отдельный шаг, который зритель должен
+   успеть прочитать и повторить; списком в пять строк на одном кадре он
+   пролистывается взглядом и не запоминается. */
+function buildSlides(n) {
+  const found = findLesson(n);
+  if (!found) return [];
+  const { lesson, stage } = found;
+  const slides = [{ kind: 'title', kicker: stage.title, title: 'Урок ' + lesson.n, body: lesson.title }];
+  let section = '';
+
+  lesson.blocks.forEach((b) => {
+    if (b.type === 'h4') { section = plain(b.html); return; }
+    if (b.type === 'lead' || b.type === 'callout') {
+      slides.push({ kind: b.isResult ? 'result' : 'callout', kicker: plain(b.label), title: '', body: plain(b.html) });
+      return;
+    }
+    if (b.type === 'p') { slides.push({ kind: 'text', kicker: section, title: '', body: plain(b.html) }); return; }
+    if (b.type === 'ol' || b.type === 'ul') {
+      const label = b.label ? plain(b.label) : section;
+      b.items.forEach((item, i) => {
+        slides.push({
+          kind: 'step', kicker: label,
+          title: b.type === 'ol' ? String(i + 1).padStart(2, '0') : '',
+          body: plain(item)
+        });
+      });
+      return;
+    }
+    // Таблицы в кадр не выносим: в уроке 1 они по три колонки, на слайде
+    // читаться не будут. Вместо этого — отсылка к тексту урока в кабинете.
+    if (b.type === 'table') {
+      slides.push({ kind: 'text', kicker: section, title: '', body: 'Таблица — в тексте урока в личном кабинете.' });
+    }
+  });
+
+  slides.push({ kind: 'outro', kicker: '', title: 'NEURA', body: 'neurastudy.xyz' });
+  return slides;
+}
+
+// Длительность под объём текста: короткой строке не нужны те же секунды, что
+// абзацу на четыре строки. Границы — чтобы слайд не мелькал и не залипал.
+function durationOf(s) {
+  if (s.kind === 'title') return 3600;
+  if (s.kind === 'outro') return 3200;
+  return Math.min(9000, Math.max(3600, 2100 + s.body.length * 46));
+}
+
+/* ---------- отрисовка ---------- */
+
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+
+function wrap(text, maxWidth) {
+  const words = String(text).split(' ');
+  const lines = [];
+  let cur = '';
+  words.forEach((w) => {
+    const next = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(next).width > maxWidth && cur) { lines.push(cur); cur = w; }
+    else { cur = next; }
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function drawBackdrop() {
+  ctx.fillStyle = '#07060f';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(155,123,255,.12)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  const g = ctx.createRadialGradient(W / 2, H / 2, 200, W / 2, H / 2, W * 0.66);
+  g.addColorStop(0, 'rgba(7,6,15,.86)');
+  g.addColorStop(1, 'rgba(7,6,15,.35)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// Постоянная шапка: зритель, включившийся с середины, должен понимать,
+// какой это урок, не отматывая в начало.
+function drawChrome(lessonNo, lessonTitle, progress) {
+  ctx.font = '22px ' + MONO;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#54508a';
+  ctx.fillText('УРОК ' + String(lessonNo).padStart(2, '0'), PAD, 92);
+  ctx.textAlign = 'right';
+  ctx.fillText(lessonTitle.toUpperCase(), W - PAD, 92);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = 'rgba(155,123,255,.16)';
+  ctx.fillRect(PAD, H - 74, W - PAD * 2, 3);
+  ctx.fillStyle = '#4fe3d0';
+  ctx.fillRect(PAD, H - 74, (W - PAD * 2) * clamp01(progress), 3);
+
+  ctx.font = '20px ' + MONO;
+  ctx.fillStyle = '#54508a';
+  ctx.textAlign = 'right';
+  ctx.fillText('NEURA', W - PAD, H - 104);
+  ctx.textAlign = 'left';
+}
+
+function drawSlide(s, t) {
+  const inP = easeOut(clamp01(t / IN));
+  const outP = clamp01((t - (s.dur - OUT)) / OUT);
+  const alpha = Math.min(inP, 1 - outP);
+  if (alpha <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(0, (1 - inP) * 26);
+
+  let y = s.kind === 'title' || s.kind === 'outro' ? 430 : 330;
+
+  if (s.kicker) {
+    ctx.font = '24px ' + MONO;
+    ctx.fillStyle = s.kind === 'result' ? '#f472c8' : '#4fe3d0';
+    ctx.fillText(s.kicker.toUpperCase(), PAD, y);
+    y += 74;
+  }
+
+  if (s.title) {
+    const size = s.kind === 'step' ? 92 : 132;
+    ctx.font = size + 'px ' + MONO;
+    ctx.fillStyle = s.kind === 'step' ? '#9b7bff' : '#e8e7f6';
+    ctx.fillText(s.title, PAD, y + size * 0.4);
+    // Отступ до текста считается от кегля заголовка: при 132px фиксированные
+    // 66px оставляли «Урок 1» и название урока почти слипшимися.
+    y += size * 0.4 + (s.kind === 'step' ? 64 : 104);
+  }
+
+  if (s.body) {
+    // Кегль подбирается под объём: самые длинные абзацы урока (за 600 знаков)
+    // при базовом размере уезжают за нижний край кадра. Уменьшаем шаг за шагом,
+    // пока блок не уложится в свободную высоту, и не мельче 30px — ниже этого
+    // текст на видео уже не читается, и абзац лучше сократить в самом уроке.
+    const base = s.kind === 'title' ? 82 : s.kind === 'outro' ? 44 : 52;
+    const avail = 940 - y;
+    let size = base, lines;
+    for (;;) {
+      ctx.font = '300 ' + size + 'px ' + SANS;
+      lines = wrap(s.body, W - PAD * 2);
+      if (lines.length * size * 1.42 <= avail || size <= 30) break;
+      size -= 4;
+    }
+    ctx.fillStyle = s.kind === 'outro' ? '#4fe3d0' : '#e8e7f6';
+    lines.forEach((line, i) => ctx.fillText(line, PAD, y + i * (size * 1.42)));
+  }
+
+  ctx.restore();
+}
+
+/* ---------- сборка ролика ---------- */
+
+let slides = [], total = 0, lessonNo = 1, lessonTitle = '';
+
+function load(n) {
+  lessonNo = n;
+  const found = findLesson(n);
+  lessonTitle = found ? found.lesson.title : '';
+  slides = buildSlides(n);
+  total = 0;
+  slides.forEach((s) => { s.at = total; s.dur = durationOf(s); total += s.dur; });
+}
+
+function drawFrame(t) {
+  drawBackdrop();
+  drawChrome(lessonNo, lessonTitle, t / total);
+  const s = slides.find((x) => t >= x.at && t < x.at + x.dur) || slides[slides.length - 1];
+  if (s) drawSlide(s, t - s.at);
+}
+
+/* ---------- проигрывание и запись ---------- */
+
+const playBtn = document.getElementById('play');
+const recBtn = document.getElementById('rec');
+const pick = document.getElementById('pick');
+const status = document.getElementById('status');
+let running = false, spoiled = false;
+
+document.addEventListener('visibilitychange', () => { if (document.hidden && running) spoiled = true; });
+
+COURSE_CARDS.forEach((card) => card.stages.forEach((stage) => stage.lessons.forEach((l) => {
+  const o = document.createElement('option');
+  o.value = l.n;
+  o.textContent = 'Урок ' + l.n + '. ' + l.title;
+  pick.appendChild(o);
+})));
+
+pick.addEventListener('change', () => { load(+pick.value); drawFrame(0); });
+
+function run(onDone) {
+  if (running) return;
+  running = true;
+  playBtn.disabled = recBtn.disabled = pick.disabled = true;
+  const t0 = performance.now();
+  (function loop(now) {
+    const t = now - t0;
+    drawFrame(Math.min(t, total));
+    if (t < total) { requestAnimationFrame(loop); return; }
+    running = false;
+    playBtn.disabled = recBtn.disabled = pick.disabled = false;
+    if (onDone) onDone();
+  })(t0);
+}
+
+playBtn.addEventListener('click', () => { status.textContent = ''; run(); });
+
+recBtn.addEventListener('click', () => {
+  if (!window.MediaRecorder || !cv.captureStream) {
+    status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
+    return;
+  }
+  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+    .find((m) => MediaRecorder.isTypeSupported(m));
+  if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
+
+  const chunks = [];
+  const rec = new MediaRecorder(cv.captureStream(60), { mimeType: mime, videoBitsPerSecond: 10000000 });
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'neura-urok-' + String(lessonNo).padStart(2, '0') + '.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    status.textContent = 'Готово — файл скачан';
+  };
+
+  spoiled = false;
+  status.textContent = 'Идёт запись… не переключайтесь на другую вкладку';
+  rec.start();
+  run(() => setTimeout(() => {
+    if (spoiled) {
+      rec.onstop = () => { status.textContent = 'Дубль испорчен — вкладка уходила в фон. Запишите заново'; };
+    }
+    rec.stop();
+  }, 250));
+});
+
+load(+(new URLSearchParams(location.search).get('lesson') || 1));
+pick.value = lessonNo;
+drawFrame(0);
+</script>
+</body>
+</html>
