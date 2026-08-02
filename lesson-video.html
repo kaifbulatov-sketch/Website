@@ -100,36 +100,60 @@ function buildSlides(n) {
   const found = findLesson(n);
   if (!found) return [];
   const { lesson, stage } = found;
-  const slides = [{ kind: 'title', kicker: stage.title, title: 'Урок ' + lesson.n, body: lesson.title }];
+  const slides = [{
+    kind: 'title', kicker: stage.title, title: 'Урок ' + lesson.n, body: lesson.title,
+    voice: 'Урок ' + lesson.n + '. ' + lesson.title + '.'
+  }];
   let section = '';
 
+  // Дикторский текст берётся из поля voice блока, а экранный — из html. Это
+  // разные тексты намеренно: на слайде нужна сжатая формулировка, вслух —
+  // живая фраза. Если voice не задан, читается экранный текст: он звучит хуже
+  // (стрелки и плюсы проговариваются буквально), но ролик всё равно собирается.
   lesson.blocks.forEach((b) => {
     if (b.type === 'h4') { section = plain(b.html); return; }
     if (b.type === 'lead' || b.type === 'callout') {
-      slides.push({ kind: b.isResult ? 'result' : 'callout', kicker: plain(b.label), title: '', body: plain(b.html) });
+      slides.push({
+        kind: b.isResult ? 'result' : 'callout', kicker: plain(b.label), title: '',
+        body: plain(b.html), voice: b.voice || plain(b.html)
+      });
       return;
     }
-    if (b.type === 'p') { slides.push({ kind: 'text', kicker: section, title: '', body: plain(b.html) }); return; }
+    if (b.type === 'p') {
+      slides.push({ kind: 'text', kicker: section, title: '', body: plain(b.html), voice: b.voice || plain(b.html) });
+      return;
+    }
     if (b.type === 'ol' || b.type === 'ul') {
       const label = b.label ? plain(b.label) : section;
       b.items.forEach((item, i) => {
         slides.push({
           kind: 'step', kicker: label,
           title: b.type === 'ol' ? String(i + 1).padStart(2, '0') : '',
-          body: plain(item)
+          body: plain(item),
+          voice: (Array.isArray(b.voice) ? b.voice[i] : null) || plain(item)
         });
       });
       return;
     }
     // Таблицы в кадр не выносим: в уроке 1 они по три колонки, на слайде
-    // читаться не будут. Вместо этого — отсылка к тексту урока в кабинете.
+    // читаться не будут. Вместо этого — отсылка к тексту урока в кабинете,
+    // а содержимое таблицы проговаривает диктор.
     if (b.type === 'table') {
-      slides.push({ kind: 'text', kicker: section, title: '', body: 'Таблица — в тексте урока в личном кабинете.' });
+      slides.push({
+        kind: 'text', kicker: section, title: '',
+        body: 'Таблица — в тексте урока в личном кабинете.',
+        voice: b.voice || 'Таблица — в тексте урока в личном кабинете.'
+      });
     }
   });
 
-  slides.push({ kind: 'outro', kicker: '', title: 'NEURA', body: 'neurastudy.xyz' });
+  slides.push({ kind: 'outro', kicker: '', title: 'NEURA', body: 'neurastudy.xyz', voice: '' });
   return slides;
+}
+
+// Весь дикторский текст урока одной строкой — им озвучивается урок целиком.
+function narrationOf(n) {
+  return buildSlides(n).map((s) => s.voice).filter(Boolean).join(' ');
 }
 
 // Длительность под объём текста: короткой строке не нужны те же секунды, что
