@@ -44,7 +44,7 @@
 </div>
 <p id="status"></p>
 <p class="hint">
-  Холст <b>1920×1080</b>, длительность <b>6 секунд</b>. Запись сохраняется в <b>.webm</b> —<br>
+  Холст <b>1920×1080</b>, длительность <b>8,4 секунды</b>. Запись сохраняется в <b>.webm</b> —<br>
   этот формат понимают и YouTube, и монтажные программы; конвертировать не нужно.
 </p>
 
@@ -73,17 +73,33 @@ const SCRAMBLE = '01ｱｲｳｴｵｶｷｸ█▓#%&';
 const pick = (s) => s[(Math.random() * s.length) | 0];
 
 const TITLE = 'NEURA';
-const TAGLINE = 'НЕЙРОСЕТИ · САЙТЫ · ВИДЕО · 3D';
+
+/* Что человек получит — по одной строке на крупный блок курса.
+   Формулировки обещают только то, чему курс действительно учит:
+   сайты — уроки 1–9, консистентный персонаж — урок 12, видео — 15–19,
+   3D — 20–23, площадки и монетизация — 24–28. */
+const LINES = [
+  'Свой сайт — за вечер',
+  'ИИ-модель с одним лицом',
+  'Видео без камеры и съёмок',
+  '3D-сцены и анимация',
+  'Блог и первые деньги'
+];
+const DOMAIN = 'neurastudy.xyz';
 
 /* Таймлайн, мс. Держим одним объектом, чтобы правки ритма не приходилось
    выковыривать из кода анимации. */
+const LINE_GAP = 550;   // задержка между появлением соседних строк
+const LINE_IN = 500;    // сколько строка «собирается» из шума
+
 const T = {
-  rainIn:    [0, 900],      // дождь проявляется
-  titleIn:   [700, 2100],   // NEURA собирается из шума
-  ruleIn:    [2000, 2600],  // акцентная черта раскрывается
-  taglineIn: [2500, 3600],  // подпись
-  hold:      [3600, 5100],  // держим кадр
-  out:       [5100, 6000]   // затемнение
+  rainIn:   [0, 900],       // дождь проявляется
+  titleIn:  [700, 2100],    // NEURA собирается из шума
+  ruleIn:   [2000, 2600],   // акцентная черта раскрывается
+  linesAt:  2600,           // первая строка списка
+  domainIn: [5400, 6000],   // адрес сайта
+  hold:     [6000, 7400],   // держим кадр
+  out:      [7400, 8400]    // затемнение
 };
 const DURATION = T.out[1];
 
@@ -207,12 +223,12 @@ function drawFrame(t) {
     // Центрируем по «NEURA_» целиком, а не по «NEURA»: подчёркивание —
     // такой же знак логотипа, и без него блок съезжает влево.
     const left = W / 2 - measureTracked(TITLE + '_', SZ, SP) / 2;
-    const used = drawTracked(decoded(TITLE, pTitle), left, 545, SZ, SP, '#e8e7f6',
+    const used = drawTracked(decoded(TITLE, pTitle), left, 430, SZ, SP, '#e8e7f6',
       'rgba(79,227,208,' + (0.55 * pTitle) + ')');
     if (pTitle > 0.55) {
       ctx.font = SZ + 'px ' + MONO;
       ctx.fillStyle = 'rgba(79,227,208,' + clamp01((pTitle - 0.55) / 0.45) + ')';
-      ctx.fillText('_', left + used + SP, 545);
+      ctx.fillText('_', left + used + SP, 430);
     }
   }
 
@@ -220,13 +236,33 @@ function drawFrame(t) {
   if (pRule > 0) {
     const half = 250 * pRule;
     ctx.fillStyle = '#f472c8';
-    ctx.fillRect(W / 2 - half, 610, half * 2, 3);
+    ctx.fillRect(W / 2 - half, 492, half * 2, 3);
   }
 
-  const pTag = at(t, T.taglineIn);
-  if (pTag > 0) {
-    drawTracked(decoded(TAGLINE, pTag), W / 2 - measureTracked(TAGLINE, 30, 11) / 2, 700, 30, 11,
-      'rgba(148,144,189,' + easeOut(pTag) + ')', null);
+  // Строки списка выходят по очереди. Левый край у всех общий — считаем его
+  // по самой длинной строке, иначе маркеры «плясали» бы по горизонтали от
+  // строки к строке и список читался бы как набор случайных подписей.
+  const SZ_LINE = 34, SP_LINE = 8, MARK = 30;
+  const widest = Math.max(...LINES.map((s) => measureTracked(s, SZ_LINE, SP_LINE)));
+  // В центр кадра ставим блок «маркер + текст», а не один текст: маркер
+  // торчит только слева, и без поправки весь список сидел бы левее логотипа.
+  const lineLeft = W / 2 - (widest + MARK) / 2 + MARK;
+
+  LINES.forEach((text, i) => {
+    const start = T.linesAt + i * LINE_GAP;
+    const p = at(t, [start, start + LINE_IN]);
+    if (p <= 0) return;
+    const y = 570 + i * 62;
+    ctx.fillStyle = 'rgba(79,227,208,' + easeOut(p) + ')';
+    ctx.fillRect(lineLeft - MARK, y - 11, 11, 11);
+    drawTracked(decoded(text, p), lineLeft, y, SZ_LINE, SP_LINE,
+      'rgba(232,231,246,' + easeOut(p) + ')', null);
+  });
+
+  const pDom = at(t, T.domainIn);
+  if (pDom > 0) {
+    drawTracked(decoded(DOMAIN, pDom), W / 2 - measureTracked(DOMAIN, 30, 10) / 2, 930, 30, 10,
+      'rgba(79,227,208,' + easeOut(pDom) + ')', 'rgba(79,227,208,' + (0.4 * pDom) + ')');
   }
 
   const pOut = at(t, T.out);
