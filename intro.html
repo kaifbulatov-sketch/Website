@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Заставка NEURA — генератор ролика</title>
+<style>
+  :root{
+    --bg:#07060f; --ink:#e8e7f6; --dim:#9490bd; --faint:#54508a;
+    --g:#4fe3d0; --violet:#9b7bff; --line-soft:rgba(155,123,255,.12);
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:#000; color:var(--ink); font-family:var(--mono);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:18px; padding:20px; overflow:hidden;
+  }
+  #stage{
+    width:min(100%,1120px); aspect-ratio:16/9; background:var(--bg);
+    border:1px solid var(--line-soft); position:relative;
+  }
+  #cv{ width:100%; height:100%; display:block; }
+  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  button{
+    font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    padding:12px 20px; background:transparent; color:var(--ink);
+    border:1px solid rgba(79,227,208,.35); cursor:pointer; transition:.25s;
+  }
+  button:hover:not(:disabled){ background:rgba(79,227,208,.1); border-color:var(--g); color:var(--g); }
+  button:disabled{ opacity:.35; cursor:default; }
+  .hint{ font-size:11px; letter-spacing:.12em; color:var(--faint); text-align:center; line-height:1.9; }
+  .hint b{ color:var(--dim); font-weight:400; }
+  #status{ font-size:11px; letter-spacing:.14em; color:var(--g); min-height:16px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+
+<div class="bar">
+  <button id="play">Проиграть</button>
+  <button id="rec">Записать в файл</button>
+</div>
+<p id="status"></p>
+<p class="hint">
+  Холст <b>1920×1080</b>, длительность <b>6 секунд</b>. Запись сохраняется в <b>.webm</b> —<br>
+  этот формат понимают и YouTube, и монтажные программы; конвертировать не нужно.
+</p>
+
+<script>
+/* Заставка NEURA — вступительный ролик к урокам курса.
+
+   Всё рисуется на одном canvas, включая надписи, — именно поэтому страница
+   умеет записать ролик сама через canvas.captureStream(): захватывать экран
+   сторонней программой не нужно, и в кадр не попадут ни курсор, ни окно браузера.
+
+   Холст всегда 1920×1080 независимо от размера окна: CSS его только
+   масштабирует, а координаты ниже — всегда в этой системе. Поэтому файл
+   получается в постоянном разрешении, даже если окно маленькое.
+
+   Дождь — та же механика, что на главной (см. rain() в script.js): падающие
+   колонки глифов со светлой «головой» и хвостом, уходящим из бирюзы в фиолетовый.
+   Здесь он переписан под фиксированный холст и общий таймлайн ролика. */
+
+const W = 1920, H = 1080;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const MONO = "'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
+const GLYPHS = '0101101001ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ0123456789';
+const SCRAMBLE = '01ｱｲｳｴｵｶｷｸ█▓#%&';
+const pick = (s) => s[(Math.random() * s.length) | 0];
+
+const TITLE = 'NEURA';
+const TAGLINE = 'НЕЙРОСЕТИ · САЙТЫ · ВИДЕО · 3D';
+
+/* Таймлайн, мс. Держим одним объектом, чтобы правки ритма не приходилось
+   выковыривать из кода анимации. */
+const T = {
+  rainIn:    [0, 900],      // дождь проявляется
+  titleIn:   [700, 2100],   // NEURA собирается из шума
+  ruleIn:    [2000, 2600],  // акцентная черта раскрывается
+  taglineIn: [2500, 3600],  // подпись
+  hold:      [3600, 5100],  // держим кадр
+  out:       [5100, 6000]   // затемнение
+};
+const DURATION = T.out[1];
+
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+const at = (t, [a, b]) => clamp01((t - a) / (b - a));
+const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+
+/* ---------- дождь ---------- */
+const SIZE = 26, STEP = SIZE + 5, MAX_DROPS = 64;
+let drops = [];
+
+function spawn(seeded) {
+  drops.push({
+    x: Math.round((Math.random() * W) / STEP) * STEP,
+    y: seeded ? Math.random() * H : -Math.random() * H * 0.6,
+    v: 2.2 + Math.random() * 4.4,
+    chars: Array.from({ length: 10 + ((Math.random() * 16) | 0) }, () => pick(GLYPHS)),
+    life: seeded ? 0.45 + Math.random() * 0.55 : 1,
+    decay: 0.0016
+  });
+}
+
+function resetRain() {
+  drops = [];
+  // Пред-заполняем экран, иначе первую секунду ролика колонки только копятся
+  // и кадр стоит пустой — а первая секунда в заставке самая дорогая.
+  for (let i = 0; i < MAX_DROPS; i++) spawn(true);
+}
+
+function drawRain(alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = SIZE + 'px ' + MONO;
+  ctx.textBaseline = 'top';
+
+  if (drops.length < MAX_DROPS && Math.random() < 0.5) spawn(false);
+
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const d = drops[i];
+    d.y += d.v;
+    d.life -= d.decay;
+    if (d.life <= 0 || d.y - d.chars.length * STEP > H) { drops.splice(i, 1); continue; }
+    if (Math.random() < 0.22) d.chars[(Math.random() * d.chars.length) | 0] = pick(GLYPHS);
+
+    for (let j = 0; j < d.chars.length; j++) {
+      const y = d.y - j * STEP;
+      if (y < -SIZE || y > H) continue;
+      const tail = 1 - j / d.chars.length;
+      const a = tail * d.life * 0.52;
+      if (j === 0) {
+        ctx.fillStyle = 'rgba(232,241,255,' + Math.min(1, a * 1.5) + ')';
+        ctx.shadowColor = 'rgba(79,227,208,0.9)';
+        ctx.shadowBlur = 10;
+      } else {
+        const k = j / d.chars.length;
+        ctx.fillStyle = 'rgba(' + Math.round(79 + 76 * k) + ',' + Math.round(227 - 104 * k) +
+          ',' + Math.round(208 + 47 * k) + ',' + (a * 0.72) + ')';
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillText(d.chars[j], d.x, y);
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+/* ---------- надписи ---------- */
+
+// Рисуем по буквам: так у каждой свой момент «схождения» из шума и
+// произвольный разрядка-интервал, чего одним fillText не получить.
+function measureTracked(text, size, spacing) {
+  ctx.font = size + 'px ' + MONO;
+  return [...text].reduce((s, ch) => s + ctx.measureText(ch).width, 0) + spacing * (text.length - 1);
+}
+
+// Рисует от левого края и возвращает занятую ширину — центрирование считает
+// вызывающий. Иначе подчёркивание, которое появляется отдельно и позже
+// заголовка, пришлось бы ставить по подобранной на глаз координате, и весь
+// блок «NEURA_» вставал бы не по центру кадра.
+function drawTracked(text, left, y, size, spacing, color, glow) {
+  ctx.font = size + 'px ' + MONO;
+  const widths = [...text].map((ch) => ctx.measureText(ch).width);
+  let x = left;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = color;
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 34; }
+  [...text].forEach((ch, i) => { ctx.fillText(ch, x, y); x += widths[i] + spacing; });
+  ctx.shadowBlur = 0;
+  return x - left - spacing;
+}
+
+function decoded(text, p) {
+  if (p >= 1) return text;
+  const settled = Math.floor(text.length * p);
+  let out = text.slice(0, settled);
+  for (let i = settled; i < text.length; i++) {
+    out += text[i] === ' ' ? ' ' : pick(SCRAMBLE);
+  }
+  return out;
+}
+
+function drawScrim() {
+  // Затемнение к центру — иначе дождь спорит с надписью за внимание.
+  const g = ctx.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, W * 0.62);
+  g.addColorStop(0, 'rgba(7,6,15,.92)');
+  g.addColorStop(1, 'rgba(7,6,15,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawFrame(t) {
+  ctx.fillStyle = '#07060f';
+  ctx.fillRect(0, 0, W, H);
+
+  drawRain(easeOut(at(t, T.rainIn)));
+  drawScrim();
+
+  const pTitle = at(t, T.titleIn);
+  if (pTitle > 0) {
+    const SZ = 150, SP = 34;
+    // Центрируем по «NEURA_» целиком, а не по «NEURA»: подчёркивание —
+    // такой же знак логотипа, и без него блок съезжает влево.
+    const left = W / 2 - measureTracked(TITLE + '_', SZ, SP) / 2;
+    const used = drawTracked(decoded(TITLE, pTitle), left, 545, SZ, SP, '#e8e7f6',
+      'rgba(79,227,208,' + (0.55 * pTitle) + ')');
+    if (pTitle > 0.55) {
+      ctx.font = SZ + 'px ' + MONO;
+      ctx.fillStyle = 'rgba(79,227,208,' + clamp01((pTitle - 0.55) / 0.45) + ')';
+      ctx.fillText('_', left + used + SP, 545);
+    }
+  }
+
+  const pRule = easeOut(at(t, T.ruleIn));
+  if (pRule > 0) {
+    const half = 250 * pRule;
+    ctx.fillStyle = '#f472c8';
+    ctx.fillRect(W / 2 - half, 610, half * 2, 3);
+  }
+
+  const pTag = at(t, T.taglineIn);
+  if (pTag > 0) {
+    drawTracked(decoded(TAGLINE, pTag), W / 2 - measureTracked(TAGLINE, 30, 11) / 2, 700, 30, 11,
+      'rgba(148,144,189,' + easeOut(pTag) + ')', null);
+  }
+
+  const pOut = at(t, T.out);
+  if (pOut > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,' + easeOut(pOut) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* ---------- проигрывание и запись ---------- */
+const playBtn = document.getElementById('play');
+const recBtn = document.getElementById('rec');
+const status = document.getElementById('status');
+let running = false;
+let spoiled = false;
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && running) spoiled = true;
+});
+
+function run(onDone) {
+  if (running) return;
+  running = true;
+  playBtn.disabled = recBtn.disabled = true;
+  resetRain();
+  const t0 = performance.now();
+  (function loop(now) {
+    const t = now - t0;
+    drawFrame(Math.min(t, DURATION));
+    if (t < DURATION) { requestAnimationFrame(loop); return; }
+    running = false;
+    playBtn.disabled = recBtn.disabled = false;
+    if (onDone) onDone();
+  })(t0);
+}
+
+playBtn.addEventListener('click', () => { status.textContent = ''; run(); });
+
+recBtn.addEventListener('click', () => {
+  if (!window.MediaRecorder || !cv.captureStream) {
+    status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
+    return;
+  }
+  // vp9 заметно чище на резком тексте и градиентах, но есть не везде;
+  // vp8 держат все, поэтому он запасной.
+  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+    .find((m) => MediaRecorder.isTypeSupported(m));
+  if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
+
+  const chunks = [];
+  const rec = new MediaRecorder(cv.captureStream(60), { mimeType: mime, videoBitsPerSecond: 12000000 });
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'neura-intro-1920x1080.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    status.textContent = 'Готово — файл скачан';
+  };
+
+  // Свёрнутая или фоновая вкладка — это остановленный requestAnimationFrame:
+  // холст перестаёт перерисовываться, и в поток уходит застывший кадр. Молча
+  // отдать битый файл хуже, чем прервать дубль, поэтому — прерываем и говорим.
+  spoiled = false;
+  status.textContent = 'Идёт запись… не переключайтесь на другую вкладку';
+  rec.start();
+  // Небольшой запас после конца таймлайна, иначе последний кадр
+  // затемнения может не попасть в файл.
+  run(() => setTimeout(() => {
+    if (spoiled) {
+      rec.onstop = () => { status.textContent = 'Дубль испорчен — вкладка уходила в фон. Запишите заново'; };
+    }
+    rec.stop();
+  }, 250));
+});
+
+// Показываем кадр из середины ролика, а не нулевой: на нулевом ролик ещё
+// чёрный, и до нажатия «Проиграть» страница выглядела бы сломанной.
+resetRain();
+drawFrame(T.hold[0]);
+</script>
+</body>
+</html>
