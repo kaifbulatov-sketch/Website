@@ -51,6 +51,7 @@
 </p>
 
 <script src="course-content.js"></script>
+<script src="lesson-audio.js"></script>
 <script>
 /* Видео-презентация урока.
 
@@ -271,15 +272,36 @@ function drawSlide(s, t) {
 
 /* ---------- сборка ролика ---------- */
 
-let slides = [], total = 0, lessonNo = 1, lessonTitle = '';
+let slides = [], total = 0, lessonNo = 1, lessonTitle = '', audio = null;
+
+const OUTRO_MS = 3000;   // сколько держать концовку после конца озвучки
 
 function load(n) {
   lessonNo = n;
   const found = findLesson(n);
   lessonTitle = found ? found.lesson.title : '';
   slides = buildSlides(n);
+  audio = (typeof LESSON_AUDIO !== 'undefined' && LESSON_AUDIO[n]) || null;
   total = 0;
-  slides.forEach((s) => { s.at = total; s.dur = durationOf(s); total += s.dur; });
+
+  if (audio) {
+    /* Есть озвучка — слайды идут под неё, а не по расчёту из числа знаков.
+       Точную длину каждой реплики отдельно мы не знаем: урок озвучен одним
+       файлом. Поэтому делим известную общую длительность между слайдами
+       пропорционально длине их дикторского текста. Диктор говорит примерно
+       с постоянной скоростью, так что доля знаков — хорошая оценка доли
+       времени, а нормировка на реальную длину файла не даёт ошибке
+       накапливаться: к концу урока картинка и голос сходятся точно. */
+    const voiced = slides.filter((s) => s.voice);
+    const chars = voiced.reduce((a, s) => a + s.voice.length, 0);
+    const ms = audio.sec * 1000;
+    voiced.forEach((s) => { s.dur = Math.round(ms * (s.voice.length / chars)); });
+    slides.filter((s) => !s.voice).forEach((s) => { s.dur = OUTRO_MS; });
+  } else {
+    slides.forEach((s) => { s.dur = durationOf(s); });
+  }
+
+  slides.forEach((s) => { s.at = total; total += s.dur; });
 }
 
 function drawFrame(t) {
@@ -308,15 +330,51 @@ COURSE_CARDS.forEach((card) => card.stages.forEach((stage) => stage.lessons.forE
 
 pick.addEventListener('change', () => { load(+pick.value); drawFrame(0); });
 
+/* Звук. Элемент и разводка через AudioContext создаются один раз на урок:
+   createMediaElementSource можно вызвать для одного элемента только однажды,
+   повторный вызов бросает исключение. Ветка нужна и для колонок, и для записи:
+   без connect в audioCtx.destination дубль пишется, но вживую ничего не слышно. */
+let audioEl = null, audioCtx = null, audioDest = null, audioFor = null;
+
+function ensureAudio() {
+  if (!audio) return null;
+  if (audioFor !== lessonNo) {
+    if (audioEl) { audioEl.pause(); }
+    audioEl = new Audio(audio.url);
+    audioEl.preload = 'auto';
+    audioCtx = null;
+    audioDest = null;
+    audioFor = lessonNo;
+  }
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new Ctx();
+    const src = audioCtx.createMediaElementSource(audioEl);
+    audioDest = audioCtx.createMediaStreamDestination();
+    src.connect(audioDest);
+    src.connect(audioCtx.destination);
+  }
+  return audioEl;
+}
+
 function run(onDone) {
   if (running) return;
   running = true;
   playBtn.disabled = recBtn.disabled = pick.disabled = true;
+
+  const a = ensureAudio();
+  if (a) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    a.currentTime = 0;
+    a.play().catch(() => {});
+  }
+
   const t0 = performance.now();
   (function loop(now) {
     const t = now - t0;
     drawFrame(Math.min(t, total));
     if (t < total) { requestAnimationFrame(loop); return; }
+    if (a) a.pause();
     running = false;
     playBtn.disabled = recBtn.disabled = pick.disabled = false;
     if (onDone) onDone();
@@ -335,7 +393,11 @@ recBtn.addEventListener('click', () => {
   if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
 
   const chunks = [];
-  const rec = new MediaRecorder(cv.captureStream(60), { mimeType: mime, videoBitsPerSecond: 10000000 });
+  const stream = cv.captureStream(60);
+  // Дорожку озвучки добавляем в тот же поток — тогда MediaRecorder пишет
+  // картинку и звук в один файл, и сводить потом ничего не нужно.
+  if (ensureAudio()) audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   rec.onstop = () => {
     const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
