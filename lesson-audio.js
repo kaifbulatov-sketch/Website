@@ -30,5 +30,14 @@ const LESSON_AUDIO = {
   16: { url: 'private/audio/urok-16.mp3', sec: 61.104 },
   17: { url: 'private/audio/urok-17.mp3', sec: 76.536 },
   18: { url: 'private/audio/urok-18.mp3', sec: 59.184 },
-  19: { url: 'private/audio/urok-19.mp3', sec: 70.224 }
+  19: { url: 'private/audio/urok-19.mp3', sec: 70.224 },
+  20: { url: 'private/audio/urok-20.mp3', sec: 67.416 },
+  21: { url: 'private/audio/urok-21.mp3', sec: 59.568 },
+  22: { url: 'private/audio/urok-22.mp3', sec: 54.216 },
+  23: { url: 'private/audio/urok-23.mp3', sec: 74.208 },
+  24: { url: 'private/audio/urok-24.mp3', sec: 52.776 },
+  25: { url: 'private/audio/urok-25.mp3', sec: 61.176 },
+  26: { url: 'private/audio/urok-26.mp3', sec: 81.168 },
+  27: { url: 'private/audio/urok-27.mp3', sec: 69.576 },
+  28: { url: 'private/audio/urok-28.mp3', sec: 70.704 }
 };
