@@ -20,5 +20,10 @@ const LESSON_AUDIO = {
   6: { url: 'private/audio/urok-06.mp3', sec: 130.224 },
   7: { url: 'private/audio/urok-07.mp3', sec: 110.928 },
   8: { url: 'private/audio/urok-08.mp3', sec: 119.496 },
-  9: { url: 'private/audio/urok-09.mp3', sec: 104.208 }
+  9: { url: 'private/audio/urok-09.mp3', sec: 104.208 },
+  10: { url: 'private/audio/urok-10.mp3', sec: 74.616 },
+  11: { url: 'private/audio/urok-11.mp3', sec: 71.088 },
+  12: { url: 'private/audio/urok-12.mp3', sec: 86.928 },
+  13: { url: 'private/audio/urok-13.mp3', sec: 52.608 },
+  14: { url: 'private/audio/urok-14.mp3', sec: 65.424 }
 };
