@@ -12,5 +12,8 @@
 // Как добавить урок: сгенерировать озвучку по тексту из полей voice в
 // course-content.js, положить файл в private/audio/ и вписать строку сюда.
 const LESSON_AUDIO = {
-  1: { url: 'private/audio/urok-01.mp3', sec: 376.056 }
+  1: { url: 'private/audio/urok-01.mp3', sec: 376.056 },
+  2: { url: 'private/audio/urok-02.mp3', sec: 134.856 },
+  3: { url: 'private/audio/urok-03.mp3', sec: 120.696 },
+  4: { url: 'private/audio/urok-04.mp3', sec: 145.008 }
 };

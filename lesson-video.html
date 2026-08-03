@@ -103,7 +103,9 @@ function buildSlides(n) {
   const { lesson, stage } = found;
   const slides = [{
     kind: 'title', kicker: stage.title, title: 'Урок ' + lesson.n, body: lesson.title,
-    voice: 'Урок ' + lesson.n + '. ' + lesson.title + '.'
+    // voiceTitle нужен там, где в названии латиница: «Claude как продюсер»
+    // синтез читает по буквам. На экране название остаётся как есть.
+    voice: 'Урок ' + lesson.n + '. ' + (lesson.voiceTitle || lesson.title) + '.'
   }];
   let section = '';
 
