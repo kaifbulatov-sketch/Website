@@ -33,19 +33,38 @@
   .hint{ font-size:11px; letter-spacing:.1em; color:var(--faint); text-align:center; line-height:1.9; }
   .hint b{ color:var(--dim); font-weight:400; }
   #status{ font-size:11px; letter-spacing:.13em; color:var(--g); min-height:16px; text-transform:uppercase; }
+  /* Полоса урока: тонкая, во всю ширину холста, кликабельная для перехода. */
+  #track{
+    width:min(100%,1120px); height:22px; display:flex; align-items:center;
+    cursor:pointer; margin-top:-6px;
+  }
+  #track::before{
+    content:''; position:absolute; width:min(100%,1120px); height:3px;
+    background:rgba(155,123,255,.2);
+  }
+  #trackFill{ position:relative; height:3px; background:var(--g); width:0; transition:width .1s linear; }
+  .mono-time{ font-size:12px; letter-spacing:.1em; color:var(--dim); min-width:104px; text-align:center; }
 </style>
 </head>
 <body>
 
 <div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
 
+<div id="track"><div id="trackFill"></div></div>
+
+<div class="bar">
+  <button id="back" title="Назад 10 секунд (стрелка влево)">◀◀ 10</button>
+  <button id="play">Проиграть</button>
+  <button id="fwd" title="Вперёд 10 секунд (стрелка вправо)">10 ▶▶</button>
+  <span id="time" class="mono-time">0:00 / 0:00</span>
+</div>
 <div class="bar">
   <select id="pick"></select>
-  <button id="play">Проиграть</button>
   <button id="rec">Записать в файл</button>
 </div>
 <p id="status"></p>
 <p class="hint">
+  <b>Пробел</b> — пауза, <b>← →</b> — перемотка на 10 секунд, клик по полосе — переход к месту урока.<br>
   Слайды строятся из текста урока в <b>course-content.js</b> — правите урок, видео меняется само.<br>
   Холст <b>1920×1080</b>, запись в <b>.webm</b>. Во время записи не переключайтесь на другую вкладку.
 </p>
@@ -319,9 +338,13 @@ const playBtn = document.getElementById('play');
 const recBtn = document.getElementById('rec');
 const pick = document.getElementById('pick');
 const status = document.getElementById('status');
-let running = false, spoiled = false;
+const barWrap = document.getElementById('track');
+const barFill = document.getElementById('trackFill');
+const timeEl = document.getElementById('time');
+let spoiled = false;
 
-document.addEventListener('visibilitychange', () => { if (document.hidden && running) spoiled = true; });
+// Уход вкладки в фон портит только запись: при обычном просмотре пауза допустима.
+document.addEventListener('visibilitychange', () => { if (document.hidden && recording) spoiled = true; });
 
 COURSE_CARDS.forEach((card) => card.stages.forEach((stage) => stage.lessons.forEach((l) => {
   const o = document.createElement('option');
@@ -330,7 +353,13 @@ COURSE_CARDS.forEach((card) => card.stages.forEach((stage) => stage.lessons.forE
   pick.appendChild(o);
 })));
 
-pick.addEventListener('change', () => { load(+pick.value); drawFrame(0); });
+pick.addEventListener('change', () => {
+  pause();
+  load(+pick.value);
+  playhead = 0;
+  drawFrame(0);
+  updateUi();
+});
 
 /* Звук. Элемент и разводка через AudioContext создаются один раз на урок:
    createMediaElementSource можно вызвать для одного элемента только однажды,
@@ -359,31 +388,133 @@ function ensureAudio() {
   return audioEl;
 }
 
-function run(onDone) {
-  if (running) return;
-  running = true;
-  playBtn.disabled = recBtn.disabled = pick.disabled = true;
+/* Урок смотрят, а не только записывают: нужны пауза и перемотка. Поэтому время
+   ролика — не «сколько прошло с момента запуска», а собственный счётчик playhead,
+   который двигается только когда идёт воспроизведение. Пауза просто перестаёт его
+   двигать, перемотка присваивает ему новое значение, а звук подтягивается следом.
+   Запись остаётся отдельным режимом: там управление заблокировано, потому что
+   пауза посреди дубля попала бы в файл. */
+let playhead = 0;      // текущая позиция в ролике, мс
+let playing = false;
+let recording = false;
+let lastTick = 0;
 
+function syncAudio() {
+  const a = ensureAudio();
+  if (!a) return;
+  let want = playhead / 1000;
+  // Ограничиваем длиной файла только если она уже известна: пока метаданные не
+  // загружены, duration равна NaN, а Math.min с NaN даёт NaN — присваивание
+  // currentTime молча проваливается, и перемотка не двигает звук вообще.
+  if (Number.isFinite(a.duration)) want = Math.min(want, a.duration);
+  // Мелкие расхождения не трогаем: присваивание currentTime на каждом кадре
+  // само по себе даёт рывки звука.
+  if (Math.abs(a.currentTime - want) > 0.25) a.currentTime = want;
+}
+
+function setPlayhead(ms) {
+  playhead = Math.max(0, Math.min(ms, total));
+  syncAudio();
+  drawFrame(playhead);
+  updateUi();
+}
+
+function updateUi() {
+  playBtn.textContent = playing ? 'Пауза' : (playhead > 0 && playhead < total ? 'Продолжить' : 'Проиграть');
+  const fmt = (ms) => {
+    const s = Math.round(ms / 1000);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+  timeEl.textContent = fmt(playhead) + ' / ' + fmt(total);
+  barFill.style.width = (total ? (playhead / total) * 100 : 0) + '%';
+}
+
+function tick(now) {
+  if (!playing) return;
+  const dt = now - lastTick;
+  lastTick = now;
+  // Пока звук идёт, время берём из него, а не из счётчика кадров: если кадры
+  // подтормаживают или вкладка уходит в фон, аудио продолжает играть, и картинка
+  // иначе отстала бы от голоса тем сильнее, чем дольше идёт урок.
+  const a = audioEl;
+  if (a && !a.paused && Number.isFinite(a.currentTime)) playhead = a.currentTime * 1000;
+  else playhead += dt;
+  if (playhead >= total) {
+    playhead = total;
+    pause();
+    drawFrame(playhead);
+    if (recording && onRecDone) onRecDone();
+    return;
+  }
+  drawFrame(playhead);
+  updateUi();
+  requestAnimationFrame(tick);
+}
+
+function play() {
+  if (playing) return;
+  if (playhead >= total) playhead = 0;
+  playing = true;
   const a = ensureAudio();
   if (a) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    a.currentTime = 0;
+    syncAudio();
     a.play().catch(() => {});
   }
-
-  const t0 = performance.now();
-  (function loop(now) {
-    const t = now - t0;
-    drawFrame(Math.min(t, total));
-    if (t < total) { requestAnimationFrame(loop); return; }
-    if (a) a.pause();
-    running = false;
-    playBtn.disabled = recBtn.disabled = pick.disabled = false;
-    if (onDone) onDone();
-  })(t0);
+  lastTick = performance.now();
+  pick.disabled = true;
+  updateUi();
+  requestAnimationFrame(tick);
 }
 
-playBtn.addEventListener('click', () => { status.textContent = ''; run(); });
+function pause() {
+  playing = false;
+  const a = audioEl;
+  if (a) a.pause();
+  if (!recording) pick.disabled = false;
+  updateUi();
+}
+
+let onRecDone = null;
+
+function run(onDone) {
+  // Режим записи: с нуля, без остановок, управление заблокировано.
+  recording = true;
+  onRecDone = () => {
+    recording = false;
+    onRecDone = null;
+    playBtn.disabled = recBtn.disabled = pick.disabled = false;
+    if (onDone) onDone();
+  };
+  playBtn.disabled = recBtn.disabled = pick.disabled = true;
+  playhead = 0;
+  const a = ensureAudio();
+  if (a) { a.currentTime = 0; }
+  play();
+}
+
+playBtn.addEventListener('click', () => {
+  status.textContent = '';
+  if (playing) pause(); else play();
+});
+
+document.getElementById('back').addEventListener('click', () => setPlayhead(playhead - 10000));
+document.getElementById('fwd').addEventListener('click', () => setPlayhead(playhead + 10000));
+
+// Клик по полосе — переход на это место урока.
+barWrap.addEventListener('click', (e) => {
+  if (recording) return;
+  const r = barWrap.getBoundingClientRect();
+  setPlayhead(((e.clientX - r.left) / r.width) * total);
+});
+
+// Пробел — пауза, стрелки — перемотка на 10 секунд. Привычные клавиши плеера.
+document.addEventListener('keydown', (e) => {
+  if (recording || e.target.tagName === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); }
+  else if (e.code === 'ArrowLeft') { e.preventDefault(); setPlayhead(playhead - 10000); }
+  else if (e.code === 'ArrowRight') { e.preventDefault(); setPlayhead(playhead + 10000); }
+});
 
 recBtn.addEventListener('click', () => {
   if (!window.MediaRecorder || !cv.captureStream) {
@@ -425,6 +556,7 @@ recBtn.addEventListener('click', () => {
 load(+(new URLSearchParams(location.search).get('lesson') || 1));
 pick.value = lessonNo;
 drawFrame(0);
+updateUi();
 </script>
 </body>
 </html>
