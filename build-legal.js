@@ -10,7 +10,6 @@
 const fs = require('fs');
 
 const REPLACEMENTS = {
-  '__IP_NAME__': process.env.IP_NAME || '[ФИО]',
   '__IP_BIN__': process.env.IP_BIN || '[БИН/ИИН]',
   '__IP_CERT__': process.env.IP_CERT || '[номер свидетельства]',
   '__IP_ADDRESS__': process.env.IP_ADDRESS || '[адрес]',
