@@ -19,7 +19,6 @@
   const btn = document.getElementById('payBtn');
   const consent = document.getElementById('payConsent');
   const authNote = document.getElementById('payAuthNote');
-  const link = KASPI_LINKS[key];
 
   const disableBtn = (text) => {
     btn.href = '#';
@@ -27,7 +26,12 @@
     btn.textContent = text;
   };
 
-  if (!link) {
+  // Временная схема: пока не подключён автоматический приём Kaspi Webpay,
+  // заявка уходит в WhatsApp вместо редиректа на страницу оплаты Kaspi.
+  // KASPI_LINKS/KASPI_ORDER_PARAM из plans-data.js здесь не используются —
+  // они остаются для будущего автоматического варианта (см.
+  // supabase-setup/README.md).
+  if (typeof WHATSAPP_CONFIGURED === 'undefined' || !WHATSAPP_CONFIGURED) {
     disableBtn('Оплата скоро подключится');
     btn.addEventListener('click', (e) => e.preventDefault());
     return;
@@ -60,7 +64,7 @@
       }
       btn.classList.add('btn--disabled');
       const prevText = btn.textContent;
-      btn.textContent = 'Готовим оплату…';
+      btn.textContent = 'Готовим заявку…';
 
       const invId = Date.now().toString() + Math.floor(Math.random() * 1000);
       const amount = Number(plan.newPrice.replace(/\D/g, ''));
@@ -80,13 +84,13 @@
         return;
       }
 
-      // Номер заказа уходит в Kaspi, чтобы вернуться обратно в вебхуке и
-      // сопоставиться со строкой в purchases.
-      // ВАЖНО: имя параметра сверить с документацией, которую Kaspi выдаёт
-      // после подключения Webpay — у разных типов интеграции оно отличается.
-      // Пока ссылки пустые, эта ветка не выполняется (см. disableBtn выше).
-      const sep = link.includes('?') ? '&' : '?';
-      location.href = link + sep + KASPI_ORDER_PARAM + '=' + invId;
+      // Номер заказа уходит в WhatsApp вместе с тарифом, суммой и почтой
+      // покупателя — чтобы при ручной отметке "оплачено" в Supabase Table
+      // Editor (см. supabase-setup/README.md) не гадать, какому пользователю
+      // открывать доступ.
+      const text = 'Здравствуйте! Хочу оплатить тариф «' + plan.title + '» за ' + plan.newPrice +
+        '. Номер заказа: ' + invId + '. Мой email в личном кабинете: ' + session.user.email;
+      location.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text);
     });
   });
 })();

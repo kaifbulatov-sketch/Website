@@ -20,9 +20,15 @@ const REPLACEMENTS = {
   '__IP_BIK__': process.env.IP_BIK || '[БИК]',
   '__IP_KBE__': process.env.IP_KBE || '[Кбе]',
   '__IP_IBAN__': process.env.IP_IBAN || '[номер счёта]',
+  // Без телефона в формате wa.me (только цифры, код страны, без "+") — временная
+  // схема оплаты в payment.js не может собрать ссылку на WhatsApp. Здесь — в
+  // отличие от строк выше — заглушка не человекочитаемая, а тот же токен: так
+  // WHATSAPP_CONFIGURED в whatsapp-config.js остаётся false, а не «настроено
+  // мусорным номером», если переменная окружения не задана.
+  '__IP_WHATSAPP__': process.env.IP_WHATSAPP || '__IP_WHATSAPP__',
 };
 
-for (const file of ['oferta.html', 'privacy.html']) {
+for (const file of ['oferta.html', 'privacy.html', 'whatsapp-config.js']) {
   let text = fs.readFileSync(file, 'utf8');
   for (const [token, value] of Object.entries(REPLACEMENTS)) {
     text = text.split(token).join(value);
