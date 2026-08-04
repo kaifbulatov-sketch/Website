@@ -44,7 +44,7 @@
 </div>
 <p id="status"></p>
 <p class="hint">
-  25 секунд, <b>1920×1080</b>, запись в <b>.webm</b> со звуком. Не переключайтесь на другую вкладку во время записи.<br>
+  24,5 секунды, <b>1920×1080</b>, запись в <b>.webm</b> со звуком. Не переключайтесь на другую вкладку во время записи.<br>
   Всё в кадре взято из данных сайта: <b>plans-data.js</b> и <b>course-content.js</b>.
 </p>
 
@@ -67,24 +67,25 @@ const MONO = "'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
 const SANS = 'Helvetica Neue, Inter, Arial, sans-serif';
 
 const AUDIO_URL = 'private/audio/promo-golos.mp3';
-const AUDIO_AT = 2500;        // голос вступает после заставки
-const AUDIO_SEC = 20.136;     // фактическая длина файла
-const DURATION = 25000;
+const AUDIO_AT = 400;         // голос вступает почти сразу — первые слова и есть крючок
+const AUDIO_SEC = 21.264;     // фактическая длина файла
+const DURATION = 24500;
 
-const SLOGAN = 'Сайты, видео и 3D-анимация';
-const SLOGAN2 = 'с помощью нейросетей';
+// Крючок: три слова бьют по одному под первые три реплики диктора.
+const HOOK = ['САЙТ', 'РОЛИК', '3D-СЦЕНА'];
 const DOMAIN = 'neurastudy.xyz';
 
 /* Сцены. Держим одним списком, чтобы правка ритма не лезла в код отрисовки.
-   Границы подогнаны под фразы диктора: слоган звучит на второй сцене, перечисление
-   уроков — на третьей и четвёртой, цена — на пятой. */
+   Границы подогнаны под фразы диктора: «сайт, ролик, сцена» — на крючке,
+   «один проект от промпта до публикации» — на логотипе, «28 уроков» — на карточках,
+   «без кода и без команды» — на ленте обложек, скидка — на цене. */
 const SC = {
-  intro:   [0, 4200],
-  slogan:  [2500, 7000],
-  cards:   [6600, 13600],
-  covers:  [13200, 17400],
-  price:   [17000, 21600],
-  domain:  [21200, 25000]
+  hook:    [400, 4200],
+  intro:   [3800, 7600],
+  cards:   [7200, 12600],
+  covers:  [12200, 16800],
+  price:   [16400, 21200],
+  domain:  [20800, 24500]
 };
 
 const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
@@ -199,9 +200,45 @@ function scrim(strength) {
 
 /* ---------- сцены ---------- */
 
+/* Крючок. Слова не выезжают плавно, а бьют: появляются мгновенно на полном
+   размере и тут же чуть оседают. Плавный выезд на первых секундах рекламы
+   читается как «сейчас что-то будет», а удар — как «уже началось». */
+function sceneHook(t) {
+  const a = env(t, SC.hook, 350);
+  if (a <= 0) return;
+  const STEP_MS = 1080;
+  ctx.save();
+  ctx.globalAlpha = a;
+  HOOK.forEach((word, i) => {
+    const start = SC.hook[0] + i * STEP_MS;
+    if (t < start) return;
+    const hit = clamp01((t - start) / 260);
+    const y = 420 + i * 130;
+    // Лёгкий «перелёт» размера в момент удара.
+    const size = 96 * (1 + (1 - easeOut(hit)) * 0.09);
+    ctx.font = '300 ' + size + 'px ' + SANS;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = i === 2 ? '#4fe3d0' : '#e8e7f6';
+    ctx.fillText(word, W / 2, y);
+    ctx.textAlign = 'left';
+    // Розовая черта прочерчивается под словом сразу за ударом.
+    const rp = easeOut(clamp01((t - start - 120) / 320));
+    if (rp > 0) {
+      ctx.font = '300 96px ' + SANS;
+      const half = (ctx.measureText(word).width / 2) * rp;
+      ctx.fillStyle = i === 2 ? '#4fe3d0' : '#f472c8';
+      ctx.fillRect(W / 2 - half, y + 24, half * 2, 3);
+    }
+  });
+  ctx.restore();
+}
+
 function sceneIntro(t) {
-  const p = at(t, [600, 2400]);
-  if (p <= 0) return;
+  const a = env(t, SC.intro, 450);
+  if (a <= 0) return;
+  const p = at(t, [SC.intro[0], SC.intro[0] + 1300]);
+  ctx.save();
+  ctx.globalAlpha = a;
   const SZ = 150, SP = 34;
   const left = W / 2 - measureTracked('NEURA_', SZ, SP) / 2;
   const used = drawTracked(decoded('NEURA', p), left, 520, SZ, SP, '#e8e7f6',
@@ -211,21 +248,16 @@ function sceneIntro(t) {
     ctx.fillStyle = 'rgba(79,227,208,' + clamp01((p - 0.55) / 0.45) + ')';
     ctx.fillText('_', left + used + SP, 520);
   }
-  const r = easeOut(at(t, [2000, 2900]));
+  const r = easeOut(at(t, [SC.intro[0] + 900, SC.intro[0] + 1700]));
   if (r > 0) {
     ctx.fillStyle = '#f472c8';
     ctx.fillRect(W / 2 - 250 * r, 582, 500 * r, 3);
   }
-}
-
-function sceneSlogan(t) {
-  const a = env(t, SC.slogan, 500);
-  if (a <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = a;
-  ctx.translate(0, (1 - easeOut(at(t, [SC.slogan[0], SC.slogan[0] + 600]))) * 24);
-  centered(SLOGAN, 500, 88, '#e8e7f6');
-  centered(SLOGAN2, 610, 88, '#4fe3d0');
+  const c = easeOut(at(t, [SC.intro[0] + 1400, SC.intro[0] + 2100]));
+  if (c > 0) {
+    ctx.globalAlpha = a * c;
+    centered('Один проект — от первого промпта до публикации', 680, 40, '#9490bd');
+  }
   ctx.restore();
 }
 
@@ -239,11 +271,13 @@ function drawCard(x, y, w, h, card, locked, alpha) {
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, w, h);
 
-  // Кегль заголовка подбирается под ширину карточки: «Упаковка под площадки»
-  // при 40px не помещается в поле и вылезает за рамку.
+  // Кегль заголовка подбирается под свободную ширину. У закрытой карточки
+  // правый верхний угол занят замком, поэтому места там меньше — иначе
+  // «Упаковка под площадки» наезжает прямо на иконку.
+  const titleBudget = w - 80 - (locked ? 60 : 0);
   let ts = 40;
   do { ctx.font = '300 ' + ts + 'px ' + SANS; ts -= 2; }
-  while (ctx.measureText(card.title).width > w - 80 && ts > 24);
+  while (ctx.measureText(card.title).width > titleBudget && ts > 22);
   ctx.fillStyle = locked ? '#9490bd' : '#e8e7f6';
   ctx.fillText(card.title, x + 40, y + 84);
 
@@ -285,7 +319,7 @@ function sceneCards(t) {
   });
   ctx.save();
   ctx.globalAlpha = a;
-  centered('Личный кабинет: купленный курс открыт, остальные — под замком', 900, 34, '#9490bd');
+  centered('28 уроков, 6 этапов — в личном кабинете', 900, 36, '#9490bd');
   ctx.restore();
 }
 
@@ -343,7 +377,7 @@ function sceneCovers(t) {
     if (x > W || x + cw < 0) continue;
     drawCover(x, 400, cw, item.l, item.st, 1);
   }
-  centered('Без кода и без команды — только вы и нейросети', 930, 40, '#e8e7f6');
+  centered('Без кода и без команды', 930, 44, '#e8e7f6');
   ctx.restore();
 }
 
@@ -398,14 +432,14 @@ function drawFrame(t) {
   ctx.fillStyle = '#07060f';
   ctx.fillRect(0, 0, W, H);
 
-  // Дождь идёт под всем роликом: ярко на заставке, дальше приглушённым фоном.
-  const rainA = t < SC.intro[1] ? easeOut(at(t, [0, 900]))
+  // Дождь идёт под всем роликом: ярко на крючке и заставке, дальше приглушённым фоном.
+  const rainA = t < SC.intro[1] ? easeOut(at(t, [0, 500]))
     : Math.max(0.16, 1 - at(t, [SC.intro[1], SC.intro[1] + 900]) * 0.84);
   drawRain(rainA);
-  scrim(t < SC.intro[1] ? 0.86 : 0.93);
+  scrim(t < SC.intro[1] ? 0.88 : 0.93);
 
+  sceneHook(t);
   sceneIntro(t);
-  sceneSlogan(t);
   sceneCards(t);
   sceneCovers(t);
   scenePrice(t);
@@ -507,7 +541,7 @@ recBtn.addEventListener('click', () => {
 });
 
 resetRain();
-drawFrame(SC.cards[0] + 1200);
+drawFrame(SC.hook[0] + 2600);
 </script>
 </body>
 </html>
