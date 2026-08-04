@@ -465,6 +465,7 @@ p{ font-size:14.8px; color:var(--dim); }
 .cabinet-plan h3{ margin-bottom:8px; }
 .cabinet-plan .pay-list{ margin:16px 0 14px; }
 .cabinet-note{ font-size:11px; color:var(--faint); }
+.cab-client{ font-size:11px; letter-spacing:.2em; color:var(--faint); text-transform:uppercase; }
 
 /* ===== course cards (cabinet) ===== */
 .cab-cards{ display:flex; flex-direction:column; gap:22px; margin-top:18px; }

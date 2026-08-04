@@ -69,13 +69,13 @@
       const invId = Date.now().toString() + Math.floor(Math.random() * 1000);
       const amount = Number(plan.newPrice.replace(/\D/g, ''));
 
-      const { error } = await supabaseClient.from('purchases').insert({
+      const { data: created, error } = await supabaseClient.from('purchases').insert({
         user_id: session.user.id,
         plan: key,
         amount,
         invoice_id: invId,
         status: 'pending'
-      });
+      }).select('order_no').single();
 
       if (error) {
         btn.textContent = prevText;
@@ -84,13 +84,18 @@
         return;
       }
 
-      // Номер заказа уходит в WhatsApp вместе с тарифом, суммой и почтой
-      // покупателя — чтобы при ручной отметке "оплачено" в Supabase Table
-      // Editor (см. supabase-setup/README.md) не гадать, какому пользователю
-      // открывать доступ.
-      const text = 'Здравствуйте! Хочу оплатить тариф «' + plan.title + '» за ' + plan.newPrice +
-        '. Номер заказа: ' + invId + '. Мой email в личном кабинете: ' + session.user.email;
-      location.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text);
+      // Номер клиента — постоянный, номер заказа — короткий и растущий.
+      // Оба уходят в WhatsApp, чтобы при ручной отметке «оплачено» в Supabase
+      // Table Editor (см. supabase-setup/README.md) заявку можно было найти
+      // глазами, не сверяя длинный invoice_id и не гадая, чей это email.
+      const { data: profile } = await supabaseClient
+        .from('profiles').select('client_no').eq('user_id', session.user.id).single();
+
+      const parts = ['Здравствуйте! Хочу оплатить тариф «' + plan.title + '» за ' + plan.newPrice + '.'];
+      if (profile && profile.client_no) parts.push('Клиент №' + profile.client_no + '.');
+      if (created && created.order_no) parts.push('Заказ №' + created.order_no + '.');
+      parts.push('Мой email в личном кабинете: ' + session.user.email);
+      location.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(parts.join(' '));
     });
   });
 })();

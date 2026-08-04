@@ -329,9 +329,15 @@
     });
   }
 
-  function renderCardsGrid(purchases, email) {
+  function renderCardsGrid(purchases, email, clientNo) {
     const unlocked = computeUnlockedCards(purchases);
-    const greeting = '<p class="label mono">Личный кабинет</p><h1 class="h2" style="margin-bottom:8px">' + escapeHtml(email) + '</h1>';
+    // Номер клиента показываем рядом с почтой: его же человек называет в WhatsApp,
+    // когда пишет про оплату, поэтому он должен быть на виду, а не только в базе.
+    const clientLine = clientNo
+      ? '<p class="cab-client mono">Клиент №' + escapeHtml(clientNo) + '</p>'
+      : '';
+    const greeting = '<p class="label mono">Личный кабинет</p><h1 class="h2" style="margin-bottom:8px">' +
+      escapeHtml(email) + '</h1>' + clientLine;
     const cardsHtml = COURSE_CARDS.map((c) =>
       unlocked.has(c.id) ? renderUnlockedCard(c) : renderLockedCard(c)
     ).join('');
@@ -376,6 +382,11 @@
       return;
     }
 
-    renderCardsGrid(purchases, session.user.email);
+    // Номер клиента — не критичен для доступа к курсу, поэтому его отсутствие
+    // (старый аккаунт без строки в profiles) не должно ломать весь кабинет.
+    const { data: profile } = await supabaseClient
+      .from('profiles').select('client_no').eq('user_id', session.user.id).single();
+
+    renderCardsGrid(purchases, session.user.email, profile && profile.client_no);
   });
 })();

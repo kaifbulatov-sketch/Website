@@ -3,6 +3,57 @@
 -- сам по себе падает с ошибкой, если политика уже есть, — а README просит
 -- перезапустить этот файл после добавления promo_windows).
 
+-- Порядковый номер клиента. Нужен, чтобы в заявках из WhatsApp не путаться:
+-- в сообщении приходит «Клиент №7», и по этому же номеру строка ищется в
+-- Table Editor. Номер выдаётся автоматически при регистрации (см. триггер ниже)
+-- и больше никогда не меняется — в отличие от email, который пользователь
+-- может сменить, и от uuid, который нечитаем.
+create table if not exists profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  client_no bigint generated always as identity,
+  email text,
+  created_at timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+
+-- Пользователь видит только свой профиль (свой номер клиента).
+drop policy if exists "select own profile" on profiles;
+create policy "select own profile"
+  on profiles for select
+  using (auth.uid() = user_id);
+
+-- Политик insert/update для пользователей нет намеренно: строку создаёт триггер
+-- ниже с правами security definer, сам пользователь свой номер выдать или
+-- поменять не может.
+
+create or replace function handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into profiles (user_id, email)
+  values (new.id, new.email)
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
+-- Выдать номера тем, кто зарегистрировался до появления этой таблицы.
+-- Порядок — по дате регистрации, чтобы номера шли в том же порядке, что и люди.
+insert into profiles (user_id, email)
+select u.id, u.email from auth.users u
+  left join profiles p on p.user_id = u.id
+  where p.user_id is null
+  order by u.created_at;
+
 create table if not exists purchases (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -12,6 +63,11 @@ create table if not exists purchases (
   status text not null default 'pending', -- pending | paid
   created_at timestamptz not null default now()
 );
+
+-- Короткий порядковый номер заказа — по нему заявку и ищут глазами.
+-- invoice_id остаётся как есть: он длинный и нечитаемый, но именно он
+-- уйдёт в Kaspi, если позже подключится автоматический приём платежей.
+alter table purchases add column if not exists order_no bigint generated always as identity;
 
 alter table purchases enable row level security;
 
