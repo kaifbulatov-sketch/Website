@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Рекламный ролик — NEURA (вертикальный)</title>
+<style>
+  :root{
+    --bg:#07060f; --ink:#e8e7f6; --dim:#9490bd; --faint:#54508a;
+    --g:#4fe3d0; --pink:#f472c8; --violet:#9b7bff; --line-soft:rgba(155,123,255,.12);
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:#000; color:var(--ink); font-family:var(--mono);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:16px; padding:20px; overflow:hidden;
+  }
+  #stage{
+    width:min(100%,420px); aspect-ratio:9/16; background:var(--bg);
+    border:1px solid var(--line-soft); position:relative;
+  }
+  #cv{ width:100%; height:100%; display:block; }
+  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  button{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    padding:11px 18px; background:transparent; color:var(--ink);
+    border:1px solid rgba(79,227,208,.35); cursor:pointer; transition:.25s;
+  }
+  button:hover:not(:disabled){ background:rgba(79,227,208,.1); border-color:var(--g); color:var(--g); }
+  button:disabled{ opacity:.35; cursor:default; }
+  .hint{ font-size:11px; letter-spacing:.1em; color:var(--faint); text-align:center; line-height:1.9; max-width:420px; }
+  .hint b{ color:var(--dim); font-weight:400; }
+  #status{ font-size:11px; letter-spacing:.13em; color:var(--g); min-height:16px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="cv" width="1080" height="1920"></canvas></div>
+
+<div class="bar">
+  <button id="play">Проиграть</button>
+  <button id="rec">Записать в файл</button>
+</div>
+<p id="status"></p>
+<p class="hint">
+  Вертикальный двойник <b>promo.html</b> — та же озвучка, музыка и сценарий, кадр 9:16
+  (<b>1080×1920</b>) под TikTok / Reels / Shorts. Раскладка сцен пересчитана под узкий кадр:
+  карточки курсов идут одна под другой, а не в ряд. Запись — в <b>.webm</b>, не переключайте вкладку.
+</p>
+
+<script src="plans-data.js"></script>
+<script src="course-content.js"></script>
+<script>
+/* Вертикальная версия рекламного ролика NEURA (9:16, под TikTok/Reels/Shorts).
+
+   Это не другой ролик — тот же голос, та же музыка, тот же сценарий и тот же тоннель,
+   что в promo.html. Меняется только раскладка: три карточки курсов, которые в горизонтальном
+   кадре стоят в ряд, здесь не помещаются по ширине и идут одна под другой; крупные надписи
+   пересчитаны под узкий кадр (1080 px), а не под широкий (1920 px). Логика тайминга, тоннеля
+   и сведения звука — общая, скопирована как есть. */
+
+const W = 1080, H = 1920;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const MONO = "'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
+const SANS = 'Helvetica Neue, Inter, Arial, sans-serif';
+
+const VOICE_URL = 'private/audio/promo-user-voice.mp3';
+const MUSIC_URL = 'private/audio/promo-music.wav';
+const DOMAIN = 'neurastudy.xyz';
+
+const LEAD_IN = 500;
+const TAIL = 1700;
+
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+const at = (t, [a, b]) => clamp01((t - a) / (b - a));
+const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+const env = (t, [a, b], fade) => {
+  const inP = clamp01((t - a) / fade);
+  const outP = clamp01((b - t) / fade);
+  return Math.min(inP, outP);
+};
+
+const SEGMENTS = [
+  { text: 'Сайты.', scene: 'hook', label: 'САЙТЫ' },
+  { text: 'Видео ролики.', scene: 'hook', label: 'ВИДЕО РОЛИКИ' },
+  { text: 'ТриДЭ Анимация.', scene: 'hook', label: '3D-АНИМАЦИЯ' },
+  { text: 'Теперь проще чем вы думали!', scene: 'tagline' },
+  { text: 'Один проект — от первого промпта до публикации.', scene: 'logo',
+    caption: 'Один проект — от первого промпта до публикации' },
+  { text: 'Двадцать восемь уроков, шесть этапов.', scene: 'cards',
+    caption: '28 уроков, 6 этапов' },
+  { text: 'Без кода и без команды.', scene: 'cards',
+    caption: 'Без кода и без команды' },
+  { text: 'Нейросети делают работу, вы принимаете решения.', scene: 'covers',
+    caption: 'Нейросети делают работу — вы принимаете решения' },
+  { text: 'Из зрителя в блогера, который зарабатывает на монетизации и рекламе.', scene: 'transform',
+    caption: 'Монетизация и реклама' },
+  { text: 'Скидка пятьдесят процентов по таймеру на сайте.', scene: 'price' },
+  { text: 'Переходи по ссылке, выбирай подходящее направление и раскрой свой потенциал!', scene: 'cta' },
+  { text: 'Места ограничены, все права защищены и являются интеллектуальной собственностью.', scene: 'domain',
+    small: 'Все права защищены' }
+];
+
+function buildTimeline(voiceSec) {
+  const totalChars = SEGMENTS.reduce((s, x) => s + x.text.length, 0);
+  const voiceMs = voiceSec * 1000;
+  let atMs = LEAD_IN;
+  SEGMENTS.forEach((seg) => {
+    seg.at = atMs;
+    seg.dur = Math.round(voiceMs * (seg.text.length / totalChars));
+    atMs += seg.dur;
+  });
+  const last = SEGMENTS[SEGMENTS.length - 1];
+  last.dur += (LEAD_IN + voiceMs) - (last.at + last.dur);
+  return LEAD_IN + voiceMs + TAIL;
+}
+
+function groupSegments(segs) {
+  const groups = [];
+  segs.forEach((seg) => {
+    const last = groups[groups.length - 1];
+    if (last && last.scene === seg.scene) { last.segs.push(seg); last.end = seg.at + seg.dur; }
+    else groups.push({ scene: seg.scene, segs: [seg], at: seg.at, end: seg.at + seg.dur });
+  });
+  return groups;
+}
+
+let VOICE_SEC = 37.721;
+let DURATION = buildTimeline(VOICE_SEC);
+let GROUPS = groupSegments(SEGMENTS);
+
+/* ---------- тоннель (та же реализация, что в promo.html — проекция сама подстраивается
+   под новые W/H, поэтому в узком кадре корпус тоннеля просто выглядит уже) ---------- */
+const TDPR = 1.5;
+const T_FOCAL = H * 0.72;
+const AQUA = '79,227,208', PINK = '244,114,200', VIOLET = '155,123,255';
+const RX = 1.55, RY = 0.95, NEAR = 0.42, FAR = 30, RING_GAP = 0.62, COLS = 12, ROWS = 7;
+
+function ridge(z) {
+  return 0.55 * Math.sin(z * 0.90)
+       + 0.30 * Math.sin(z * 2.31 + 1.7)
+       + 0.18 * Math.sin(z * 4.73 + 0.4)
+       + 0.10 * Math.sin(z * 9.17 + 2.2);
+}
+const RANGES = [
+  { x: 2.30, seed: 0.0, amp: 1.15, base: 0.10, rgb: VIOLET, alpha: 0.95, drag: 1.00 },
+  { x: 3.60, seed: 11.3, amp: 1.75, base: 0.28, rgb: PINK, alpha: 0.60, drag: 0.55 }
+];
+const M_STEP = 0.62, M_STRUT = 3;
+
+let tTravel = 0, tT = 0, tRoll = 0, tOx = 0, tOy = 0, tCosR = 1, tSinR = 0, tThrust = 0.03;
+let tLastMs = null;
+
+function tProj(x, y, z) {
+  const s = T_FOCAL / z;
+  const wx = x + tOx, wy = y + tOy;
+  return [W / 2 + (wx * tCosR - wy * tSinR) * s, H / 2 + (wx * tSinR + wy * tCosR) * s];
+}
+
+function tDrawMountains() {
+  for (const r of RANGES) {
+    for (const side of [-1, 1]) {
+      const shift = tTravel * r.drag + r.seed + (side < 0 ? 0 : 47.9);
+      const Z_MIN = 1.6;
+      ctx.beginPath();
+      let started = false;
+      for (let z = Z_MIN; z < FAR; z += M_STEP) {
+        const h = r.base + r.amp * (ridge(z * 0.55 + shift) * 0.5 + 0.5);
+        const [sx, sy] = tProj(side * r.x, RY - h, z);
+        started ? ctx.lineTo(sx, sy) : (ctx.moveTo(sx, sy), started = true);
+      }
+      const grad = ctx.createLinearGradient(0, H * 0.12, 0, H * 0.98);
+      grad.addColorStop(0, 'rgba(' + r.rgb + ',' + r.alpha + ')');
+      grad.addColorStop(0.55, 'rgba(' + r.rgb + ',' + (r.alpha * 0.7) + ')');
+      grad.addColorStop(1, 'rgba(' + r.rgb + ',' + (r.alpha * 0.22) + ')');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = Math.max(1, TDPR * 1.25);
+      ctx.stroke();
+
+      let i = 0;
+      ctx.beginPath();
+      for (let z = Z_MIN; z < FAR; z += M_STEP, i++) {
+        if (i % M_STRUT) continue;
+        const fade = 1 - z / FAR;
+        if (fade <= 0.05) continue;
+        const h = r.base + r.amp * (ridge(z * 0.55 + shift) * 0.5 + 0.5);
+        const [tx, ty] = tProj(side * r.x, RY - h, z);
+        const [bx, by] = tProj(side * r.x, RY, z);
+        ctx.moveTo(tx, ty); ctx.lineTo(bx, by);
+      }
+      ctx.strokeStyle = 'rgba(' + r.rgb + ',' + (r.alpha * 0.42) + ')';
+      ctx.lineWidth = Math.max(1, TDPR * 0.7);
+      ctx.stroke();
+    }
+  }
+}
+
+const T_NODES = 190;
+const tNodes = Array.from({ length: T_NODES }, () => ({
+  x: (Math.random() - 0.5) * RX * 2.6, y: (Math.random() - 0.5) * RY * 2.6,
+  z: NEAR + Math.random() * (FAR - NEAR), p: Math.random() * 6.28
+}));
+const T_STREAKS = 55;
+const tStreaks = Array.from({ length: T_STREAKS }, () => ({
+  x: (Math.random() - 0.5) * RX * 2.9, y: (Math.random() - 0.5) * RY * 2.9,
+  z: NEAR + Math.random() * (FAR - NEAR), k: 1.6 + Math.random() * 2.4
+}));
+const CUBE_V = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+const CUBE_E = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+const tCubes = Array.from({ length: 9 }, (_, i) => ({
+  x: (Math.random() - 0.5) * 2.6, y: (Math.random() - 0.5) * 1.6, z: NEAR + 2 + i * 3.1,
+  s: 0.16 + Math.random() * 0.14, rx: Math.random() * 6.28, ry: Math.random() * 6.28,
+  vx: 0.004 + Math.random() * 0.006, vy: 0.003 + Math.random() * 0.005
+}));
+const tPulses = [{ z: 6 }, { z: 15 }, { z: 24 }];
+
+function tAdvance(dtFrames) {
+  tT += 0.016 * dtFrames;
+  tThrust = 0.030;
+  tTravel += tThrust * dtFrames;
+  tOx = Math.sin(tT * 0.23) * 0.06;
+  tOy = Math.cos(tT * 0.19) * 0.04;
+  tRoll = Math.sin(tT * 0.15) * 0.05;
+  tCosR = Math.cos(tRoll); tSinR = Math.sin(tRoll);
+
+  for (const n of tNodes) {
+    n.z -= tThrust * dtFrames;
+    if (n.z <= NEAR) { n.z = FAR; n.x = (Math.random() - 0.5) * RX * 2.4; n.y = (Math.random() - 0.5) * RY * 2.4; }
+  }
+  for (const s of tStreaks) {
+    s.z -= tThrust * s.k * dtFrames;
+    if (s.z <= NEAR) { s.z = FAR; s.x = (Math.random() - 0.5) * RX * 2.9; s.y = (Math.random() - 0.5) * RY * 2.9; }
+  }
+  for (const c of tCubes) {
+    c.z -= tThrust * 0.85 * dtFrames;
+    c.rx += c.vx * dtFrames; c.ry += c.vy * dtFrames;
+    if (c.z <= NEAR + 0.6) { c.z = FAR; c.x = (Math.random() - 0.5) * 2.4; c.y = (Math.random() - 0.5) * 1.5; }
+  }
+  for (const p of tPulses) {
+    p.z += tThrust * 2.6 * dtFrames;
+    if (p.z > FAR) p.z = NEAR + 0.5;
+  }
+}
+
+function tDraw(alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1, TDPR * 0.8);
+
+  tDrawMountains();
+
+  const first = NEAR + (tTravel % RING_GAP);
+  for (let z = first; z < FAR; z += RING_GAP) {
+    const fade = 1 - z / FAR;
+    const a = fade * fade * 0.78;
+    if (a < 0.004) continue;
+    const [ax, ay] = tProj(-RX, -RY, z), [bx, by] = tProj(RX, -RY, z),
+      [cx2, cy2] = tProj(RX, RY, z), [dx, dy] = tProj(-RX, RY, z);
+    ctx.strokeStyle = 'rgba(79,227,208,' + a + ')';
+    ctx.beginPath();
+    ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx2, cy2); ctx.lineTo(dx, dy);
+    ctx.closePath(); ctx.stroke();
+  }
+
+  for (const p of tPulses) {
+    const fade = 1 - p.z / FAR;
+    if (fade > 0) {
+      const [ax, ay] = tProj(-RX, -RY, p.z), [bx, by] = tProj(RX, -RY, p.z),
+        [cx2, cy2] = tProj(RX, RY, p.z), [dx, dy] = tProj(-RX, RY, p.z);
+      ctx.strokeStyle = 'rgba(226,240,255,' + (fade * 0.85) + ')';
+      ctx.lineWidth = Math.max(1, TDPR * 1.7);
+      ctx.shadowColor = 'rgba(79,227,208,0.9)'; ctx.shadowBlur = 18 * TDPR;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx2, cy2); ctx.lineTo(dx, dy);
+      ctx.closePath(); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.lineWidth = Math.max(1, TDPR * 0.8);
+    }
+  }
+
+  const Z0 = 0.9, BANDS = 16;
+  for (let b = 0; b < BANDS; b++) {
+    const z0 = Z0 * Math.pow(FAR / Z0, b / BANDS), z1 = Z0 * Math.pow(FAR / Z0, (b + 1) / BANDS);
+    const fade = 1 - ((z0 + z1) * 0.5) / FAR;
+    const a = fade * fade * 0.6;
+    if (a < 0.005) continue;
+    ctx.beginPath();
+    for (let i = 0; i <= COLS; i++) {
+      const x = -RX + (2 * RX) * (i / COLS);
+      for (const y of [-RY, RY]) {
+        const p0 = tProj(x, y, z0), p1 = tProj(x, y, z1);
+        ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]);
+      }
+    }
+    for (let i = 0; i <= ROWS; i++) {
+      const y = -RY + (2 * RY) * (i / ROWS);
+      for (const x of [-RX, RX]) {
+        const p0 = tProj(x, y, z0), p1 = tProj(x, y, z1);
+        ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]);
+      }
+    }
+    ctx.strokeStyle = 'rgba(' + AQUA + ',' + a + ')';
+    ctx.stroke();
+  }
+
+  for (const n of tNodes) {
+    const fade = 1 - n.z / FAR;
+    if (fade <= 0) continue;
+    const bob = Math.sin(tT * 1.4 + n.p) * 0.045;
+    const [sx, sy] = tProj(n.x, n.y + bob, n.z);
+    const r = Math.max(0.6, (T_FOCAL / n.z) * 0.006);
+    if (n.z < 9) {
+      const [px2, py2] = tProj(n.x, n.y + bob, n.z + tThrust * 5);
+      ctx.strokeStyle = 'rgba(' + VIOLET + ',' + (fade * 0.34) + ')';
+      ctx.lineWidth = Math.max(1, r * 0.9);
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px2, py2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(' + VIOLET + ',' + (fade * 0.7) + ')';
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.28); ctx.fill();
+  }
+
+  ctx.lineWidth = Math.max(1, TDPR * 0.9);
+  for (const s of tStreaks) {
+    const fade = 1 - s.z / FAR;
+    if (fade <= 0) continue;
+    const [ax, ay] = tProj(s.x, s.y, s.z), [bx, by] = tProj(s.x, s.y, s.z + tThrust * 14 * s.k);
+    ctx.strokeStyle = 'rgba(' + AQUA + ',' + (fade * fade * 0.75) + ')';
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  ctx.lineWidth = Math.max(1, TDPR * 0.8);
+
+  for (const c of tCubes) {
+    const fade = 1 - c.z / FAR;
+    if (fade <= 0) continue;
+    const ca = Math.cos(c.rx), sa = Math.sin(c.rx), cb = Math.cos(c.ry), sb = Math.sin(c.ry);
+    const pts = CUBE_V.map(([vx, vy, vz]) => {
+      let x = vx * cb + vz * sb;
+      let z = -vx * sb + vz * cb;
+      let y = vy * ca - z * sa;
+      z = vy * sa + z * ca;
+      return tProj(c.x + x * c.s, c.y + y * c.s, c.z + z * c.s);
+    });
+    ctx.strokeStyle = 'rgba(' + PINK + ',' + (fade * 0.6) + ')';
+    ctx.beginPath();
+    for (const [a, b] of CUBE_E) { ctx.moveTo(pts[a][0], pts[a][1]); ctx.lineTo(pts[b][0], pts[b][1]); }
+    ctx.stroke();
+  }
+
+  const [vx, vy] = tProj(0, 0, FAR);
+  const halo = ctx.createRadialGradient(vx, vy, 0, vx, vy, H * 0.34);
+  halo.addColorStop(0, 'rgba(79,227,208,' + (0.26 + Math.sin(tT * 1.1) * 0.07) + ')');
+  halo.addColorStop(0.5, 'rgba(79,227,208,0.09)');
+  halo.addColorStop(1, 'rgba(79,227,208,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+const TUNNEL_ALPHA = 0.42;
+
+/* ---------- дождь — акцент на крючке, как в promo.html ---------- */
+const GLYPHS = '0101101001ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ0123456789';
+const SCRAMBLE = '01ｱｲｳｴｵｶｷｸ█▓#%&';
+const pick = (s) => s[(Math.random() * s.length) | 0];
+const SIZE = 24, STEP = SIZE + 5, MAX_DROPS = 64;
+let drops = [];
+
+function resetRain() {
+  drops = [];
+  for (let i = 0; i < MAX_DROPS; i++) {
+    drops.push({
+      x: Math.round((Math.random() * W) / STEP) * STEP,
+      y: Math.random() * H,
+      v: 2.2 + Math.random() * 4.4,
+      chars: Array.from({ length: 10 + ((Math.random() * 16) | 0) }, () => pick(GLYPHS)),
+      life: 0.45 + Math.random() * 0.55,
+      decay: 0.0016
+    });
+  }
+}
+
+function drawRain(alpha) {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = SIZE + 'px ' + MONO;
+  ctx.textBaseline = 'top';
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const d = drops[i];
+    d.y += d.v;
+    d.life -= d.decay;
+    if (d.life <= 0 || d.y - d.chars.length * STEP > H) {
+      drops[i] = {
+        x: Math.round((Math.random() * W) / STEP) * STEP,
+        y: -Math.random() * H * 0.5, v: 2.2 + Math.random() * 4.4,
+        chars: Array.from({ length: 10 + ((Math.random() * 16) | 0) }, () => pick(GLYPHS)),
+        life: 1, decay: 0.0016
+      };
+      continue;
+    }
+    if (Math.random() < 0.22) d.chars[(Math.random() * d.chars.length) | 0] = pick(GLYPHS);
+    for (let j = 0; j < d.chars.length; j++) {
+      const y = d.y - j * STEP;
+      if (y < -SIZE || y > H) continue;
+      const a = (1 - j / d.chars.length) * d.life * 0.52;
+      if (j === 0) {
+        ctx.fillStyle = 'rgba(232,241,255,' + Math.min(1, a * 1.5) + ')';
+        ctx.shadowColor = 'rgba(79,227,208,0.9)';
+        ctx.shadowBlur = 10;
+      } else {
+        const k = j / d.chars.length;
+        ctx.fillStyle = 'rgba(' + Math.round(79 + 76 * k) + ',' + Math.round(227 - 104 * k) +
+          ',' + Math.round(208 + 47 * k) + ',' + (a * 0.72) + ')';
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillText(d.chars[j], d.x, y);
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+/* ---------- утилиты текста ---------- */
+function measureTracked(text, size, sp) {
+  ctx.font = size + 'px ' + MONO;
+  return [...text].reduce((s, c) => s + ctx.measureText(c).width, 0) + sp * (text.length - 1);
+}
+function drawTracked(text, left, y, size, sp, color, glow) {
+  ctx.font = size + 'px ' + MONO;
+  let x = left;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = color;
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 34; }
+  [...text].forEach((c) => { ctx.fillText(c, x, y); x += ctx.measureText(c).width + sp; });
+  ctx.shadowBlur = 0;
+  return x - left - sp;
+}
+function decoded(text, p) {
+  if (p >= 1) return text;
+  const n = Math.floor(text.length * p);
+  let out = text.slice(0, n);
+  for (let i = n; i < text.length; i++) out += text[i] === ' ' ? ' ' : pick(SCRAMBLE);
+  return out;
+}
+function centered(text, y, size, color, weight) {
+  ctx.font = (weight || '300 ') + size + 'px ' + SANS;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color;
+  ctx.fillText(text, W / 2, y);
+  ctx.textAlign = 'left';
+}
+// Текст с автоподбором кегля под ширину узкого кадра: пробует size, уменьшает на 2,
+// пока не впишется в maxW или не дойдёт до floor. В конце ctx.font уже выставлен верно.
+function fitFont(text, maxW, size, floor) {
+  let s = size;
+  do { ctx.font = '300 ' + s + 'px ' + SANS; s -= 2; }
+  while (ctx.measureText(text).width > maxW && s > (floor || 24));
+  return s + 2;
+}
+function fitCentered(text, y, maxW, size, color, floor) {
+  fitFont(text, maxW, size, floor);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color;
+  ctx.fillText(text, W / 2, y);
+  ctx.textAlign = 'left';
+}
+function fitCenteredDecoded(text, y, maxW, size, color, p, floor) {
+  fitFont(text, maxW, size, floor);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color;
+  ctx.fillText(decoded(text, clamp01(p)), W / 2, y);
+  ctx.textAlign = 'left';
+}
+
+function scrim(strength) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, 150, W / 2, H / 2, Math.max(W, H) * 0.6);
+  g.addColorStop(0, 'rgba(7,6,15,' + strength + ')');
+  g.addColorStop(1, 'rgba(7,6,15,' + (strength * 0.35) + ')');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+const SAFE_W = 940;
+
+/* ---------- сцены (раскладка под 1080×1920) ---------- */
+
+function sceneHook(t, g) {
+  const a = env(t, [g.at, g.end], 350);
+  if (a <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  g.segs.forEach((seg, i) => {
+    const start = seg.at;
+    if (t < start) return;
+    const hit = clamp01((t - start) / 260);
+    const y = 780 + i * 190;
+    const last = i === g.segs.length - 1;
+    const base = fitFont(seg.label, 900, 84, 40);
+    const size = base * (1 + (1 - easeOut(hit)) * 0.09);
+    ctx.font = '300 ' + size + 'px ' + SANS;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = last ? '#4fe3d0' : '#e8e7f6';
+    ctx.fillText(seg.label, W / 2, y);
+    ctx.textAlign = 'left';
+    const rp = easeOut(clamp01((t - start - 120) / 320));
+    if (rp > 0) {
+      ctx.font = '300 ' + base + 'px ' + SANS;
+      const half = (ctx.measureText(seg.label).width / 2) * rp;
+      ctx.fillStyle = last ? '#4fe3d0' : '#f472c8';
+      ctx.fillRect(W / 2 - half, y + 22, half * 2, 3);
+    }
+  });
+  ctx.restore();
+}
+
+function sceneTagline(t, g) {
+  const a = env(t, [g.at, g.end], 450);
+  if (a <= 0) return;
+  const seg = g.segs[0];
+  const text = seg.text.replace(/\.$/, '');
+  const p = at(t, [g.at, g.at + 700]);
+  ctx.save();
+  ctx.globalAlpha = a;
+  fitCenteredDecoded(text, 960, SAFE_W, 76, '#e8e7f6', p, 36);
+  const r = easeOut(at(t, [g.at + 500, g.at + 900]));
+  if (r > 0) {
+    const halfw = (ctx.measureText(text).width / 2) * r;
+    ctx.fillStyle = '#f472c8';
+    ctx.fillRect(W / 2 - halfw, 1010, halfw * 2, 3);
+  }
+  ctx.restore();
+}
+
+function sceneLogo(t, g) {
+  const a = env(t, [g.at, g.end], 450);
+  if (a <= 0) return;
+  const seg = g.segs[0];
+  const p = at(t, [g.at, g.at + 1300]);
+  ctx.save();
+  ctx.globalAlpha = a;
+  const SZ = 108, SP = 22;
+  const left = W / 2 - measureTracked('NEURA_', SZ, SP) / 2;
+  const used = drawTracked(decoded('NEURA', p), left, 900, SZ, SP, '#e8e7f6',
+    'rgba(79,227,208,' + (0.55 * p) + ')');
+  if (p > 0.55) {
+    ctx.font = SZ + 'px ' + MONO;
+    ctx.fillStyle = 'rgba(79,227,208,' + clamp01((p - 0.55) / 0.45) + ')';
+    ctx.fillText('_', left + used + SP, 900);
+  }
+  const r = easeOut(at(t, [g.at + 900, g.at + 1700]));
+  if (r > 0) { ctx.fillStyle = '#f472c8'; ctx.fillRect(W / 2 - 220 * r, 950, 440 * r, 3); }
+  const c = easeOut(at(t, [g.at + 1400, g.at + 2100]));
+  if (c > 0) { ctx.globalAlpha = a * c; fitCentered(seg.caption, 1030, SAFE_W, 34, '#9490bd', 22); }
+  ctx.restore();
+}
+
+function drawCard(x, y, w, h, card, locked, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(18,14,38,.72)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = locked ? 'rgba(155,123,255,.22)' : 'rgba(79,227,208,.4)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+
+  const titleBudget = w - 80 - (locked ? 60 : 0);
+  let ts = 42;
+  do { ctx.font = '300 ' + ts + 'px ' + SANS; ts -= 2; }
+  while (ctx.measureText(card.title).width > titleBudget && ts > 22);
+  ctx.fillStyle = locked ? '#9490bd' : '#e8e7f6';
+  ctx.fillText(card.title, x + 40, y + h * 0.32);
+
+  ctx.font = '22px ' + MONO;
+  ctx.fillStyle = locked ? '#54508a' : '#4fe3d0';
+  ctx.fillText(card.range.toUpperCase(), x + 40, y + h * 0.55);
+
+  const n = card.stages.reduce((s, st) => s + st.lessons.length, 0);
+  ctx.font = '300 26px ' + SANS;
+  ctx.fillStyle = '#9490bd';
+  ctx.fillText(n + ' уроков', x + 40, y + h * 0.78);
+
+  if (locked) {
+    const px = 5, ox = x + w - 78, oy = y + 36;
+    ctx.fillStyle = '#54508a';
+    const R = (a, b, c, d) => ctx.fillRect(ox + a * px, oy + b * px, c * px, d * px);
+    R(2, 0, 4, 1); R(2, 1, 1, 3); R(5, 1, 1, 3);
+    R(0, 4, 8, 5); ctx.fillStyle = '#07060f'; R(3, 6, 2, 2);
+  }
+  ctx.restore();
+}
+
+function sceneCards(t, g) {
+  const a = env(t, [g.at, g.end], 500);
+  if (a <= 0) return;
+  const w = 860, h = 220, gap = 30;
+  const x = W / 2 - w / 2;
+  let y = 560;
+  COURSE_CARDS.forEach((card, i) => {
+    const p = easeOut(clamp01((t - (g.at + i * 320)) / 700));
+    if (p > 0) {
+      ctx.save();
+      ctx.translate((1 - p) * 40, 0);
+      drawCard(x, y, w, h, card, i > 0, a * p);
+      ctx.restore();
+    }
+    y += h + gap;
+  });
+  g.segs.forEach((seg) => {
+    const capA = env(t, [seg.at, seg.at + seg.dur], 350) * a;
+    if (capA > 0) { ctx.save(); ctx.globalAlpha = capA; fitCentered(seg.caption, y + 60, SAFE_W, 34, '#9490bd', 22); ctx.restore(); }
+  });
+}
+
+function drawCover(x, y, w, lesson, stageTitle, alpha) {
+  const h = w * 9 / 16;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#07060f';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(155,123,255,.18)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  const s = w / 1600;
+  ctx.font = (26 * s) + 'px ' + MONO;
+  ctx.fillStyle = '#54508a';
+  ctx.fillText('УРОК', x + 120 * s, y + 196 * s);
+  ctx.font = (150 * s) + 'px ' + MONO;
+  ctx.fillStyle = '#4fe3d0';
+  ctx.fillText(String(lesson.n).padStart(2, '0'), x + 120 * s, y + 368 * s);
+  ctx.fillStyle = '#f472c8';
+  ctx.fillRect(x + 120 * s, y + 410 * s, 118 * s, 3 * s);
+  ctx.font = '300 ' + (66 * s) + 'px ' + SANS;
+  ctx.fillStyle = '#e8e7f6';
+  const words = lesson.title.split(' ');
+  let line = '', ly = y + 524 * s;
+  words.forEach((word) => {
+    const next = line ? line + ' ' + word : word;
+    if (ctx.measureText(next).width > w - 240 * s && line) {
+      ctx.fillText(line, x + 120 * s, ly); line = word; ly += 82 * s;
+    } else line = next;
+  });
+  if (line) ctx.fillText(line, x + 120 * s, ly);
+  ctx.font = (23 * s) + 'px ' + MONO;
+  ctx.fillStyle = '#54508a';
+  ctx.fillText(stageTitle.toUpperCase(), x + 120 * s, y + 812 * s);
+  ctx.restore();
+}
+
+const STRIP = [];
+COURSE_CARDS.forEach((c) => c.stages.forEach((st) => st.lessons.forEach((l) => STRIP.push({ l, st: st.title }))));
+
+function sceneCovers(t, g) {
+  const a = env(t, [g.at, g.end], 450);
+  if (a <= 0) return;
+  const p = at(t, [g.at, g.end]);
+  const cw = 460, gap = 28, y = 800;
+  const offset = -p * (cw + gap) * 5;
+  ctx.save();
+  ctx.globalAlpha = a;
+  for (let i = 0; i < 9; i++) {
+    const item = STRIP[(i + 4) % STRIP.length];
+    const x = -140 + i * (cw + gap) + offset;
+    if (x > W || x + cw < 0) continue;
+    drawCover(x, y, cw, item.l, item.st, 1);
+  }
+  fitCentered(g.segs[0].caption, y + cw * 9 / 16 + 90, SAFE_W, 40, '#e8e7f6', 24);
+  ctx.restore();
+}
+
+function sceneTransform(t, g) {
+  const a = env(t, [g.at, g.end], 450);
+  if (a <= 0) return;
+  const seg = g.segs[0];
+  const p = easeOut(at(t, [g.at, g.at + 700]));
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.textAlign = 'center';
+  ctx.font = '300 76px ' + SANS;
+  ctx.fillStyle = '#54508a';
+  ctx.fillText('ЗРИТЕЛЬ', W / 2, 820 - (1 - p) * 30);
+  ctx.font = '300 52px ' + SANS;
+  ctx.fillStyle = '#f472c8';
+  ctx.fillText('↓', W / 2, 928);
+  ctx.font = '300 76px ' + SANS;
+  ctx.fillStyle = '#4fe3d0';
+  ctx.fillText('БЛОГЕР', W / 2, 1038 + (1 - p) * 30);
+  ctx.textAlign = 'left';
+  const cp = easeOut(at(t, [g.at + 500, g.at + 950]));
+  if (cp > 0) { ctx.globalAlpha = a * cp; fitCentered(seg.caption, 1130, SAFE_W, 34, '#9490bd', 22); }
+  ctx.restore();
+}
+
+function scenePrice(t, g) {
+  const a = env(t, [g.at, g.end], 450);
+  if (a <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  centered('Полный курс', 720, 38, '#9490bd');
+
+  const plan = PLANS.full;
+  ctx.textAlign = 'center';
+  ctx.font = '300 56px ' + SANS;
+  ctx.fillStyle = '#54508a';
+  const oldW = ctx.measureText(plan.oldPrice).width;
+  ctx.fillText(plan.oldPrice, W / 2, 840);
+  ctx.strokeStyle = '#54508a';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - oldW / 2, 822);
+  ctx.lineTo(W / 2 + oldW / 2, 822);
+  ctx.stroke();
+
+  ctx.font = '300 118px ' + SANS;
+  ctx.fillStyle = '#4fe3d0';
+  ctx.fillText(plan.newPrice, W / 2, 990);
+  ctx.textAlign = 'left';
+
+  const bw = 420, bx = W / 2 - bw / 2;
+  ctx.strokeStyle = '#f472c8';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx, 1050, bw, 76);
+  centered('−50% ПО ТАЙМЕРУ НА САЙТЕ', 1100, 26, '#f472c8', '400 ');
+  ctx.restore();
+}
+
+function sceneCTA(t, g) {
+  const a = env(t, [g.at, g.end], 450);
+  if (a <= 0) return;
+  const line1 = 'Переходи по ссылке,';
+  const line2 = 'выбирай направление и раскрой потенциал';
+  const p1 = at(t, [g.at, g.at + 650]);
+  const p2 = at(t, [g.at + 500, g.at + 1150]);
+  ctx.save();
+  ctx.globalAlpha = a;
+  fitCenteredDecoded(line1, 900, SAFE_W, 62, '#e8e7f6', p1, 30);
+  fitCenteredDecoded(line2, 990, SAFE_W, 40, '#4fe3d0', p2, 24);
+  ctx.restore();
+}
+
+function sceneDomain(t, g) {
+  const holdEnd = DURATION - 60;
+  const a = env(t, [g.at, holdEnd], 500);
+  if (a <= 0) return;
+  const seg = g.segs[0];
+  const p = at(t, [g.at, g.at + 700]);
+  ctx.save();
+  ctx.globalAlpha = a;
+  let sz = 66, sp = 10;
+  let dw = measureTracked(DOMAIN, sz, sp);
+  while (dw > SAFE_W && sz > 36) { sz -= 4; sp -= 1; dw = measureTracked(DOMAIN, sz, sp); }
+  drawTracked(decoded(DOMAIN, p), W / 2 - dw / 2, 900, sz, sp, '#4fe3d0', 'rgba(79,227,208,.45)');
+  const SZ2 = 30, SP2 = 8;
+  drawTracked('NEURA_', W / 2 - measureTracked('NEURA_', SZ2, SP2) / 2, 970, SZ2, SP2, '#54508a', null);
+  const spn = easeOut(at(t, [g.at + 900, g.at + 1400]));
+  if (spn > 0 && seg.small) { ctx.globalAlpha = a * spn; centered(seg.small, 1030, 22, '#54508a'); }
+  ctx.restore();
+}
+
+const SCENE_FN = {
+  hook: sceneHook, tagline: sceneTagline, logo: sceneLogo, cards: sceneCards,
+  covers: sceneCovers, transform: sceneTransform, price: scenePrice, cta: sceneCTA, domain: sceneDomain
+};
+const DENSE = { cards: 1, covers: 1, price: 1 };
+
+function drawFrame(t) {
+  ctx.fillStyle = '#07060f';
+  ctx.fillRect(0, 0, W, H);
+
+  const dtFrames = tLastMs === null ? 1 : Math.max(0, (t - tLastMs)) / 16.6667;
+  tLastMs = t;
+  tAdvance(dtFrames);
+  tDraw(TUNNEL_ALPHA);
+
+  const hookEnd = GROUPS[0].end;
+  const rainA = t < hookEnd ? easeOut(at(t, [0, 500])) : Math.max(0, 1 - at(t, [hookEnd, hookEnd + 900])) * 0.5;
+  drawRain(rainA);
+
+  const active = GROUPS.find((gr) => t >= gr.at && t < gr.end) || GROUPS[GROUPS.length - 1];
+  scrim(DENSE[active.scene] ? 0.85 : 0.72);
+
+  GROUPS.forEach((g) => SCENE_FN[g.scene](t, g));
+
+  const out = at(t, [DURATION - 700, DURATION]);
+  if (out > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,' + easeOut(out) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* ---------- звук: та же логика сведения, что в promo.html ---------- */
+const playBtn = document.getElementById('play');
+const recBtn = document.getElementById('rec');
+const status = document.getElementById('status');
+let running = false, spoiled = false;
+
+const voiceEl = new Audio(VOICE_URL);
+voiceEl.preload = 'auto';
+const musicEl = new Audio(MUSIC_URL);
+musicEl.preload = 'auto';
+
+voiceEl.addEventListener('loadedmetadata', () => {
+  const real = voiceEl.duration;
+  if (Number.isFinite(real) && Math.abs(real - VOICE_SEC) > 0.05) {
+    console.warn('Голос: заявленная длина', VOICE_SEC, 'с, реальная', real, 'с — пересчитываю таймлайн.');
+    VOICE_SEC = real;
+    DURATION = buildTimeline(VOICE_SEC);
+    GROUPS = groupSegments(SEGMENTS);
+  }
+});
+
+let audioCtx = null, voiceGain = null, musicGain = null, audioDest = null, audioReady = false;
+
+function ensureAudio() {
+  if (audioReady) return;
+  audioReady = true;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new Ctx();
+  audioDest = audioCtx.createMediaStreamDestination();
+  const voiceSrc = audioCtx.createMediaElementSource(voiceEl);
+  const musicSrc = audioCtx.createMediaElementSource(musicEl);
+  voiceGain = audioCtx.createGain();
+  musicGain = audioCtx.createGain();
+  voiceSrc.connect(voiceGain);
+  voiceGain.connect(audioDest);
+  voiceGain.connect(audioCtx.destination);
+  musicSrc.connect(musicGain);
+  musicGain.connect(audioDest);
+  musicGain.connect(audioCtx.destination);
+}
+
+function scheduleMix() {
+  const now = audioCtx.currentTime;
+  const voiceStart = now + LEAD_IN / 1000;
+  const voiceEnd = voiceStart + VOICE_SEC;
+  const DUCK = 0.16, FULL = 0.55, END_SWELL = 0.40;
+
+  musicGain.gain.cancelScheduledValues(now);
+  musicGain.gain.setValueAtTime(0.0001, now);
+  musicGain.gain.linearRampToValueAtTime(FULL, now + 0.4);
+  musicGain.gain.linearRampToValueAtTime(DUCK, voiceStart + 0.3);
+  musicGain.gain.setValueAtTime(DUCK, voiceEnd - 0.2);
+  musicGain.gain.linearRampToValueAtTime(END_SWELL, voiceEnd + 0.5);
+  musicGain.gain.linearRampToValueAtTime(0.0001, now + DURATION / 1000);
+
+  voiceGain.gain.cancelScheduledValues(now);
+  voiceGain.gain.setValueAtTime(1, now);
+}
+
+document.addEventListener('visibilitychange', () => { if (document.hidden && running) spoiled = true; });
+
+function run(onDone) {
+  if (running) return;
+  running = true;
+  playBtn.disabled = recBtn.disabled = true;
+  resetRain();
+  tLastMs = null;
+
+  ensureAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  voiceEl.pause(); voiceEl.currentTime = 0;
+  musicEl.pause(); musicEl.currentTime = 0;
+  scheduleMix();
+  musicEl.play().catch(() => {});
+  let voiceStarted = false;
+
+  const t0 = performance.now();
+  (function loop(now) {
+    const t = now - t0;
+    if (!voiceStarted && t >= LEAD_IN) { voiceStarted = true; voiceEl.play().catch(() => {}); }
+    drawFrame(Math.min(t, DURATION));
+    if (t < DURATION) { requestAnimationFrame(loop); return; }
+    voiceEl.pause(); musicEl.pause();
+    running = false;
+    playBtn.disabled = recBtn.disabled = false;
+    if (onDone) onDone();
+  })(t0);
+}
+
+playBtn.addEventListener('click', () => { status.textContent = ''; run(); });
+
+recBtn.addEventListener('click', () => {
+  if (!window.MediaRecorder || !cv.captureStream) {
+    status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
+    return;
+  }
+  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+    .find((m) => MediaRecorder.isTypeSupported(m));
+  if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
+
+  const chunks = [];
+  const stream = cv.captureStream(60);
+  ensureAudio();
+  audioDest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'neura-reklama-9x16.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    status.textContent = 'Готово — файл скачан';
+  };
+
+  spoiled = false;
+  status.textContent = 'Идёт запись… не переключайтесь на другую вкладку';
+  rec.start();
+  run(() => setTimeout(() => {
+    if (spoiled) {
+      rec.onstop = () => { status.textContent = 'Дубль испорчен — вкладка уходила в фон. Запишите заново'; };
+    }
+    rec.stop();
+  }, 250));
+});
+
+resetRain();
+drawFrame(GROUPS[0].at + 900);
+</script>
+</body>
+</html>
