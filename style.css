@@ -553,6 +553,9 @@ p{ font-size:14.8px; color:var(--dim); }
 .legal h1{ margin:10px 0 40px; }
 .legal__list li{ list-style:none; margin-bottom:34px; }
 .legal__list h3{ font-size:15px; font-weight:400; color:var(--g); margin-bottom:12px; }
-.legal__list p{ margin-bottom:10px; font-size:13.6px; line-height:1.7; }
+.legal__list p{
+  margin-bottom:10px; font-size:13.6px; line-height:1.7;
+  text-align:justify; text-align-last:left; hyphens:auto;
+}
 .legal a{ color:var(--g); text-decoration:underline; text-underline-offset:3px; }
 
