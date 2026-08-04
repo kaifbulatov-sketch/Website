@@ -14,10 +14,13 @@
   body{
     background:#000; color:var(--ink); font-family:var(--mono);
     min-height:100vh; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; gap:16px; padding:20px; overflow:hidden;
+    justify-content:center; gap:16px; padding:20px; overflow-x:hidden; overflow-y:auto;
   }
   #stage{
-    width:min(100%,420px); aspect-ratio:9/16; background:var(--bg);
+    /* Кадр 9:16 сам по себе высокий — ограничиваем его высотой окна (не только
+       шириной), иначе на невысоких окнах он выталкивает кнопки под собой за
+       пределы экрана и кажется, что страница «зависла» одной картинкой. */
+    height:min(72vh, 780px); width:auto; aspect-ratio:9/16; background:var(--bg);
     border:1px solid var(--line-soft); position:relative;
   }
   #cv{ width:100%; height:100%; display:block; }
