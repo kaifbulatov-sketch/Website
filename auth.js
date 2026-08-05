@@ -62,6 +62,12 @@
         const { data, error } = await supabaseClient.auth.signUp({ email, password });
         if (error) throw error;
         if (data.session) {
+          // Сообщаем рекламным площадкам о регистрации до ухода со страницы:
+          // по этому событию они и учатся находить похожую аудиторию.
+          // neuraTrack появляется только когда пиксель настроен (см. analytics.js),
+          // поэтому проверяем — иначе без пикселя здесь была бы ошибка и человек
+          // застрял бы на форме вместо перехода в кабинет.
+          if (typeof window.neuraTrack === 'function') window.neuraTrack('CompleteRegistration');
           location.href = nextUrl;
         } else {
           setMsg('Проверьте почту — там письмо для подтверждения аккаунта.', false);

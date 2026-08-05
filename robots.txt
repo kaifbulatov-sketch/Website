@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Служебные страницы-генераторы: это внутренние инструменты для записи роликов
+# и презентаций уроков, а не контент для посетителей. В поиске они не нужны и
+# только размывают выдачу по бренду.
+Disallow: /promo.html
+Disallow: /promo-vertical.html
+Disallow: /intro.html
+Disallow: /lesson-video.html
+
+# Оферта и политика уже помечены noindex в самих страницах — здесь не дублируем,
+# чтобы robots.txt не мешал роботу дойти до страницы и прочитать этот noindex.
+
+Sitemap: https://neurastudy.xyz/sitemap.xml
