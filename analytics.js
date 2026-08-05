@@ -21,6 +21,25 @@
               создать пиксель, скопировать числовой ID.
    Вставить ниже, закоммитить, задеплоить — и события пойдут. */
 
+/* --- Google: нужен для рекламы на YouTube ---------------------------------
+   YouTube крутится через Google Ads, и конверсии считает он же, а не TikTok
+   и не Meta. Нужны две вещи, и обе берутся в кабинете Google Ads:
+
+   GOOGLE_ADS_ID — идентификатор аккаунта вида AW-123456789.
+       Где: Google Ads → Цели → Конверсии → Сводка → выбрать действие-конверсию,
+       в блоке «Настройка тега» будет строка AW-…
+
+   GOOGLE_ADS_LABEL — метка конкретного действия-конверсии, вида AbC-D_efGh12.
+       Там же, рядом с AW-. Без метки Google засчитает переход, но не поймёт,
+       КАКОЕ действие произошло, и оптимизировать открутку будет не по чему.
+
+   GA4_ID — необязательно, вида G-XXXXXXXXXX. Нужен, если хотите ещё и
+       аналитику по поведению на сайте, а не только конверсии для рекламы. */
+const GOOGLE_ADS_ID = '';
+const GOOGLE_ADS_LABEL = '';
+const GA4_ID = '';
+
+/* --- TikTok и Meta: пригодятся, если реклама пойдёт и туда ---------------- */
 const TIKTOK_PIXEL_ID = '';
 const META_PIXEL_ID = '';
 
@@ -29,7 +48,27 @@ const META_PIXEL_ID = '';
 
   const hasTikTok = /^[A-Za-z0-9]{10,}$/.test(TIKTOK_PIXEL_ID);
   const hasMeta = /^\d{10,}$/.test(META_PIXEL_ID);
-  if (!hasTikTok && !hasMeta) return;   // ничего не настроено — выходим молча
+  const hasAds = /^AW-\d{6,}$/.test(GOOGLE_ADS_ID);
+  const hasGa4 = /^G-[A-Z0-9]{6,}$/.test(GA4_ID);
+  const hasGoogle = hasAds || hasGa4;
+  if (!hasTikTok && !hasMeta && !hasGoogle) return;   // ничего не настроено — выходим молча
+
+  /* --- Google tag: один скрипт обслуживает и Google Ads, и GA4 ------------
+     gtag.js подключается один раз, а config вызывается для каждого
+     идентификатора отдельно. Порядок важен: dataLayer и сама функция gtag
+     должны существовать до того, как приедет внешний скрипт, иначе первые
+     вызовы потеряются. */
+  if (hasGoogle) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    if (hasAds) window.gtag('config', GOOGLE_ADS_ID);
+    if (hasGa4) window.gtag('config', GA4_ID);
+    const gs = document.createElement('script');
+    gs.async = true;
+    gs.src = 'https://www.googletagmanager.com/gtag/js?id=' + (hasAds ? GOOGLE_ADS_ID : GA4_ID);
+    document.head.appendChild(gs);
+  }
 
   /* --- загрузка пикселя TikTok (официальный сниппет, сокращён до сути) --- */
   if (hasTikTok) {
@@ -85,9 +124,32 @@ const META_PIXEL_ID = '';
      на них обучаются алгоритмы оптимизации, самописные названия площадка
      использовать для оптимизации не умеет.
   ------------------------------------------------------------------ */
+  /* Google называет события иначе, чем TikTok и Meta, а Google Ads вдобавок
+     ждёт не имя события, а пару «идентификатор/метка». Поэтому одно наше
+     событие раскладывается на три разных вызова. */
+  const GA4_NAMES = {
+    ViewContent: 'view_item_list',
+    InitiateCheckout: 'begin_checkout',
+    CompleteRegistration: 'sign_up'
+  };
+  // За какие события Google Ads должен засчитывать конверсию. Просмотр тарифов
+  // сюда не входит намеренно: если конверсией считать каждый просмотр, алгоритм
+  // начнёт искать зрителей, а не покупателей.
+  const ADS_CONVERSIONS = ['InitiateCheckout', 'CompleteRegistration'];
+
   function track(event, params) {
     try { if (hasTikTok && window.ttq) window.ttq.track(event, params || {}); } catch (e) {}
     try { if (hasMeta && window.fbq) window.fbq('track', event, params || {}); } catch (e) {}
+    try {
+      if (hasGa4 && window.gtag) {
+        window.gtag('event', GA4_NAMES[event] || event, params || {});
+      }
+      if (hasAds && window.gtag && GOOGLE_ADS_LABEL && ADS_CONVERSIONS.indexOf(event) !== -1) {
+        const p = { send_to: GOOGLE_ADS_ID + '/' + GOOGLE_ADS_LABEL };
+        if (params && params.value) { p.value = params.value; p.currency = 'KZT'; }
+        window.gtag('event', 'conversion', p);
+      }
+    } catch (e) {}
   }
   window.neuraTrack = track;
 
