@@ -118,6 +118,67 @@ function findLesson(n) {
   return null;
 }
 
+/* ------------------------------------------------------------------
+   Числа для диктора.
+
+   Синтез читает цифры неровно: «Урок 1» выходит то «урок один», то «урок
+   первый», а иногда просто «урок». Латиница рядом с цифрой («3D») и вовсе
+   читается по буквам. Поэтому в текст, который уходит в озвучку, цифры не
+   попадают вообще — только слова. На экране при этом остаётся «Урок 1» и
+   «3D», как и было: правится исключительно то, что произносится.
+------------------------------------------------------------------ */
+const ONES = ['ноль', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+const TEENS = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать',
+  'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
+const TENS = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят',
+  'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
+const HUNDREDS = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот',
+  'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
+const ORDINALS = ['', 'первый', 'второй', 'третий', 'четвёртый', 'пятый', 'шестой', 'седьмой',
+  'восьмой', 'девятый', 'десятый', 'одиннадцатый', 'двенадцатый', 'тринадцатый', 'четырнадцатый',
+  'пятнадцатый', 'шестнадцатый', 'семнадцатый', 'восемнадцатый', 'девятнадцатый', 'двадцатый'];
+
+function numWords(n) {
+  n = Number(n);
+  if (!Number.isFinite(n) || n < 0 || n > 999) return String(n);
+  if (n === 0) return 'ноль';
+  const out = [];
+  const h = Math.floor(n / 100);
+  const rest = n % 100;
+  if (h) out.push(HUNDREDS[h]);
+  if (rest >= 10 && rest < 20) out.push(TEENS[rest - 10]);
+  else {
+    const t = Math.floor(rest / 10), o = rest % 10;
+    if (t) out.push(TENS[t]);
+    if (o) out.push(ONES[o]);
+  }
+  return out.join(' ');
+}
+
+// Порядковое числительное: «Урок 5» вслух звучит как «урок пятый», а не «урок пять».
+function ordinalWords(n) {
+  n = Number(n);
+  if (n >= 1 && n <= 20) return ORDINALS[n];
+  if (n > 20 && n < 100) {
+    const t = Math.floor(n / 10), o = n % 10;
+    return o ? TENS[t] + ' ' + ORDINALS[o] : (TENS[t].replace(/ь$/, '') + 'ый');
+  }
+  return numWords(n);
+}
+
+function speakable(text) {
+  if (!text) return text;
+  let s = String(text);
+  // «3D» → «три дэ»: иначе диктор диктует «три-ди» по буквам латиницей.
+  s = s.replace(/(\d)\s*[DdДд]\b/g, (m, d) => numWords(d) + ' дэ');
+  // Проценты и знаки, которые вслух читаются словами.
+  s = s.replace(/(\d+)\s*%/g, (m, d) => numWords(d) + ' процентов');
+  s = s.replace(/(\d+)\s*[×xх]\s*(\d+)/g, (m, a, b) => numWords(a) + ' на ' + numWords(b));
+  // Всё оставшееся числовое — прописью.
+  s = s.replace(/\d+/g, (m) => numWords(m));
+  return s;
+}
+
 /* Один блок урока — один слайд, кроме списков: там каждый пункт получает
    свой слайд. Пункт «Действия» — это отдельный шаг, который зритель должен
    успеть прочитать и повторить; списком в пять строк на одном кадре он
@@ -130,7 +191,7 @@ function buildSlides(n) {
     kind: 'title', kicker: stage.title, title: 'Урок ' + lesson.n, body: lesson.title,
     // voiceTitle нужен там, где в названии латиница: «Claude как продюсер»
     // синтез читает по буквам. На экране название остаётся как есть.
-    voice: 'Урок ' + lesson.n + '. ' + (lesson.voiceTitle || lesson.title) + '.'
+    voice: speakable('Урок ' + ordinalWords(lesson.n) + '. ' + (lesson.voiceTitle || lesson.title) + '.')
   }];
   let section = '';
 
@@ -143,12 +204,12 @@ function buildSlides(n) {
     if (b.type === 'lead' || b.type === 'callout') {
       slides.push({
         kind: b.isResult ? 'result' : 'callout', kicker: plain(b.label), title: '',
-        body: plain(b.html), voice: b.voice || plain(b.html)
+        body: plain(b.html), voice: speakable(b.voice || plain(b.html))
       });
       return;
     }
     if (b.type === 'p') {
-      slides.push({ kind: 'text', kicker: section, title: '', body: plain(b.html), voice: b.voice || plain(b.html) });
+      slides.push({ kind: 'text', kicker: section, title: '', body: plain(b.html), voice: speakable(b.voice || plain(b.html)) });
       return;
     }
     if (b.type === 'ol' || b.type === 'ul') {
@@ -158,7 +219,7 @@ function buildSlides(n) {
           kind: 'step', kicker: label,
           title: b.type === 'ol' ? String(i + 1).padStart(2, '0') : '',
           body: plain(item),
-          voice: (Array.isArray(b.voice) ? b.voice[i] : null) || plain(item)
+          voice: speakable((Array.isArray(b.voice) ? b.voice[i] : null) || plain(item))
         });
       });
       return;
@@ -170,7 +231,7 @@ function buildSlides(n) {
       slides.push({
         kind: 'text', kicker: section, title: '',
         body: 'Таблица — в тексте урока в личном кабинете.',
-        voice: b.voice || 'Таблица — в тексте урока в личном кабинете.'
+        voice: speakable(b.voice || 'Таблица — в тексте урока в личном кабинете.')
       });
     }
   });
