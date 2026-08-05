@@ -50,7 +50,8 @@
 <p class="hint">
   Вертикальный двойник <b>promo.html</b> — та же озвучка, музыка и сценарий, кадр 9:16
   (<b>1080×1920</b>) под TikTok / Reels / Shorts. Раскладка сцен пересчитана под узкий кадр:
-  карточки курсов идут одна под другой, а не в ряд. Запись — в <b>.webm</b>, не переключайте вкладку.
+  карточки курсов идут одна под другой, а не в ряд. Запись — в <b>.mp4</b> (открывается на iPhone,
+  принимается TikTok/Reels/Shorts), не переключайте вкладку.
 </p>
 
 <script src="plans-data.js"></script>
@@ -888,9 +889,20 @@ recBtn.addEventListener('click', () => {
     status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
     return;
   }
-  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-    .find((m) => MediaRecorder.isTypeSupported(m));
+  /* MP4 (H.264 + AAC) — первым по списку. Именно эту, вертикальную версию заливают
+     в TikTok/Reels/Shorts с телефона, а .webm iPhone не импортирует вообще. Уровень
+     H.264 в строке кодека намеренно не указан: у кадра 1080×1920 он выше базового, и
+     если прибить конкретный (avc1.42E01E), браузер получит несовместимую с кадром метку.
+     WebM оставлен запасным вариантом — если MP4 не поддержан, лучше отдать хоть что-то. */
+  const mime = [
+    'video/mp4;codecs=avc1,mp4a.40.2',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ].find((m) => MediaRecorder.isTypeSupported(m));
   if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
+  const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
 
   const chunks = [];
   const stream = cv.captureStream(60);
@@ -899,10 +911,10 @@ recBtn.addEventListener('click', () => {
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   rec.onstop = () => {
-    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    const url = URL.createObjectURL(new Blob(chunks, { type: mime.split(';')[0] }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'neura-reklama-9x16.webm';
+    a.download = 'neura-reklama-9x16.' + ext;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     status.textContent = 'Готово — файл скачан';

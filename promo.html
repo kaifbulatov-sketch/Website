@@ -45,7 +45,7 @@
 </div>
 <p id="status"></p>
 <p class="hint">
-  ~40 секунд, <b>1920×1080</b>, реальная озвучка + фоновая музыка, запись в <b>.webm</b>.
+  ~40 секунд, <b>1920×1080</b>, реальная озвучка + фоновая музыка, запись в <b>.mp4</b>.
   Не переключайтесь на другую вкладку во время записи.<br>
   Карточки и цены — из <b>plans-data.js</b> и <b>course-content.js</b>, фон — тот же 3D-тоннель, что на сайте.
 </p>
@@ -875,9 +875,21 @@ recBtn.addEventListener('click', () => {
     status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
     return;
   }
-  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-    .find((m) => MediaRecorder.isTypeSupported(m));
+  /* MP4 (H.264 + AAC) — первым по списку. .webm не импортируется на iPhone и не
+     принимается при загрузке в TikTok/Reels/Shorts с телефона, а ролик выкладывают
+     именно оттуда, так что webm здесь бесполезен как итоговый файл. Уровень H.264
+     в строке кодека намеренно не указан: у кадра 1920×1080 он выше базового, и если
+     прибить конкретный (avc1.42E01E), браузер получит несовместимую с кадром метку.
+     WebM оставлен запасным вариантом — если MP4 не поддержан, лучше отдать хоть что-то. */
+  const mime = [
+    'video/mp4;codecs=avc1,mp4a.40.2',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ].find((m) => MediaRecorder.isTypeSupported(m));
   if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
+  const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
 
   const chunks = [];
   const stream = cv.captureStream(60);
@@ -886,10 +898,10 @@ recBtn.addEventListener('click', () => {
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   rec.onstop = () => {
-    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    const url = URL.createObjectURL(new Blob(chunks, { type: mime.split(';')[0] }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'neura-reklama.webm';
+    a.download = 'neura-reklama.' + ext;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     status.textContent = 'Готово — файл скачан';
