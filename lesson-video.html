@@ -61,13 +61,18 @@
 </div>
 <div class="bar">
   <select id="pick"></select>
-  <button id="rec">Записать в файл</button>
+  <button id="rec">Записать урок</button>
+  <button id="recAll">Записать все 28</button>
 </div>
 <p id="status"></p>
 <p class="hint">
   <b>Пробел</b> — пауза, <b>← →</b> — перемотка на 10 секунд, клик по полосе — переход к месту урока.<br>
   Слайды строятся из текста урока в <b>course-content.js</b> — правите урок, видео меняется само.<br>
-  Холст <b>1920×1080</b>, запись в <b>.webm</b>. Во время записи не переключайтесь на другую вкладку.
+  Холст <b>1920×1080</b>, запись в <b>.mp4</b>. Во время записи не переключайтесь на другую вкладку.<br>
+  <b>«Записать все 28»</b> прогоняет уроки подряд и складывает файлы в загрузки — это примерно
+  <b>46 минут</b>, вкладку всё это время трогать нельзя. Chrome один раз спросит разрешение
+  на скачивание нескольких файлов — надо согласиться.<br>
+  Перед заливкой готовых файлов прогоните их через <b>fix-video.ps1</b>.
 </p>
 
 <script src="course-content.js"></script>
@@ -517,41 +522,104 @@ document.addEventListener('keydown', (e) => {
   else if (e.code === 'ArrowRight') { e.preventDefault(); setPlayhead(playhead + 10000); }
 });
 
-recBtn.addEventListener('click', () => {
+/* MP4 (H.264 + AAC) первым: .webm не импортируется на iPhone и не принимается
+   при загрузке с телефона, а уроки потом заливать на видеохостинг. Уровень H.264
+   намеренно не указан — кадр 1920×1080 выше базового, и жёсткая метка сделала бы
+   файл некорректным. WebM остаётся запасным вариантом. */
+const MIME_CANDIDATES = [
+  'video/mp4;codecs=avc1,mp4a.40.2',
+  'video/mp4',
+  'video/webm;codecs=vp9',
+  'video/webm;codecs=vp8',
+  'video/webm'
+];
+
+/* Пишет ТЕКУЩИЙ загруженный урок целиком и отдаёт промис — на нём и держится
+   пакетный прогон: следующий урок стартует строго после того, как предыдущий
+   дописан и скачан, иначе записи наложатся друг на друга. */
+function recordCurrentLesson() {
+  return new Promise((resolve, reject) => {
+    const mime = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m));
+    if (!mime) { reject(new Error('Формат записи не поддерживается')); return; }
+    const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const no = lessonNo;
+
+    const chunks = [];
+    const stream = cv.captureStream(60);
+    // Дорожку озвучки добавляем в тот же поток — тогда MediaRecorder пишет
+    // картинку и звук в один файл, и сводить потом ничего не нужно.
+    if (ensureAudio()) audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
+    rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    rec.onstop = () => {
+      if (spoiled) { reject(new Error('дубль испорчен — вкладка уходила в фон')); return; }
+      const url = URL.createObjectURL(new Blob(chunks, { type: mime.split(';')[0] }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'neura-urok-' + String(no).padStart(2, '0') + '.' + ext;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      resolve();
+    };
+
+    spoiled = false;
+    rec.start();
+    run(() => setTimeout(() => rec.stop(), 250));
+  });
+}
+
+recBtn.addEventListener('click', async () => {
   if (!window.MediaRecorder || !cv.captureStream) {
     status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
     return;
   }
-  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-    .find((m) => MediaRecorder.isTypeSupported(m));
-  if (!mime) { status.textContent = 'Формат записи не поддерживается'; return; }
-
-  const chunks = [];
-  const stream = cv.captureStream(60);
-  // Дорожку озвучки добавляем в тот же поток — тогда MediaRecorder пишет
-  // картинку и звук в один файл, и сводить потом ничего не нужно.
-  if (ensureAudio()) audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
-  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  rec.onstop = () => {
-    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'neura-urok-' + String(lessonNo).padStart(2, '0') + '.webm';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    status.textContent = 'Готово — файл скачан';
-  };
-
-  spoiled = false;
   status.textContent = 'Идёт запись… не переключайтесь на другую вкладку';
-  rec.start();
-  run(() => setTimeout(() => {
-    if (spoiled) {
-      rec.onstop = () => { status.textContent = 'Дубль испорчен — вкладка уходила в фон. Запишите заново'; };
+  try {
+    await recordCurrentLesson();
+    status.textContent = 'Готово — файл скачан';
+  } catch (err) {
+    status.textContent = 'Не записалось: ' + err.message;
+  }
+});
+
+/* Пакетная запись. Ради неё всё выше и разбито на промисы: 28 роликов подряд —
+   это около 46 минут, и сидеть кликать «записать» 28 раз незачем. */
+const recAllBtn = document.getElementById('recAll');
+const ALL_LESSON_NUMBERS = [...pick.options].map((o) => +o.value);
+
+recAllBtn.addEventListener('click', async () => {
+  if (!window.MediaRecorder || !cv.captureStream) {
+    status.textContent = 'Браузер не умеет записывать — откройте в Chrome';
+    return;
+  }
+  const totalSec = ALL_LESSON_NUMBERS.reduce((s, n) => s + ((LESSON_AUDIO[n] || {}).sec || 0), 0);
+  if (!confirm('Записать все ' + ALL_LESSON_NUMBERS.length + ' уроков подряд?\n\n' +
+      'Это займёт около ' + Math.round(totalSec / 60) + ' минут. Вкладку всё это время\n' +
+      'нельзя переключать и сворачивать — иначе дубли испортятся.')) return;
+
+  recAllBtn.disabled = true;
+  const failed = [];
+  for (let i = 0; i < ALL_LESSON_NUMBERS.length; i++) {
+    const n = ALL_LESSON_NUMBERS[i];
+    status.textContent = 'Записываю урок ' + n + ' (' + (i + 1) + ' из ' + ALL_LESSON_NUMBERS.length + ')… не трогайте вкладку';
+    pick.value = n;
+    pause();
+    load(n);
+    playhead = 0;
+    drawFrame(0);
+    try {
+      await recordCurrentLesson();
+    } catch (err) {
+      failed.push(n);
     }
-    rec.stop();
-  }, 250));
+    // Пауза между уроками: дать браузеру дописать файл на диск и освободить
+    // прошлый MediaRecorder, иначе на длинной серии он начинает ронять дубли.
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+  recAllBtn.disabled = false;
+  status.textContent = failed.length
+    ? 'Готово, но не записались уроки: ' + failed.join(', ') + ' — перезапишите их по одному'
+    : 'Готово — все ' + ALL_LESSON_NUMBERS.length + ' уроков скачаны';
 });
 
 load(+(new URLSearchParams(location.search).get('lesson') || 1));
