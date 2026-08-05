@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="NEURA — логотип, буква N">
+  <!-- Логотип NEURA: буква N в стиле шапки сайта.
+       Вектор, поэтому масштабируется в любой размер без потери качества:
+       и на аватарку 200×200, и на баннер 4000×4000.
+       Цвета взяты из style.css: фон #07060f, буква #e8e7f6,
+       свечение и курсор #4fe3d0. -->
+  <defs>
+    <!-- Свечение в три слоя: один размытый ореол даёт ватный грязный контур,
+         поэтому широкий, средний и узкий накладываются друг на друга. -->
+    <filter id="glowWide" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="34" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/></feMerge>
+    </filter>
+    <filter id="glowMid" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="glowTight" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <radialGradient id="vign" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0d0b1c"/>
+      <stop offset="100%" stop-color="#07060f"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#vign)"/>
+
+  <!-- Едва заметная перспективная рамка — отсылка к тоннелю на сайте. -->
+  <g stroke="#4fe3d0" fill="none" opacity="0.10">
+    <rect x="212" y="276" width="600" height="472"/>
+    <rect x="292" y="332" width="440" height="360"/>
+    <rect x="372" y="388" width="280" height="248"/>
+    <path d="M212 276 L372 388 M812 276 L652 388 M212 748 L372 636 M812 748 L652 636"/>
+  </g>
+
+  <!-- Буква. Моноширинный шрифт, как у .logo в шапке. -->
+  <g font-family="Consolas, 'SFMono-Regular', Menlo, monospace" font-size="520" font-weight="700"
+     text-anchor="middle" dominant-baseline="central">
+    <text x="512" y="480" fill="#4fe3d0" opacity="0.55" filter="url(#glowWide)">N</text>
+    <text x="512" y="480" fill="#4fe3d0" opacity="0.70" filter="url(#glowMid)">N</text>
+    <text x="512" y="480" fill="#bfeee6" opacity="0.85" filter="url(#glowTight)">N</text>
+    <text x="512" y="480" fill="#e8e7f6">N</text>
+  </g>
+
+  <!-- Курсор под буквой: в шапке сайта это мигающий «_» бирюзового цвета. -->
+  <g filter="url(#glowMid)">
+    <rect x="404" y="700" width="216" height="18" rx="2" fill="#4fe3d0" opacity="0.8"/>
+  </g>
+  <rect x="404" y="700" width="216" height="18" rx="2" fill="#4fe3d0"/>
+</svg>
