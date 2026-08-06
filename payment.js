@@ -44,15 +44,37 @@
     return;
   }
 
+  // Ссылка на WhatsApp с уже написанным сообщением.
+  const toWhatsApp = (text) => {
+    location.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text);
+  };
+
   supabaseClient.auth.getSession().then(({ data }) => {
     const session = data.session;
+
+    /* Гость — заявку принимаем сразу, аккаунт не требуем.
+       Раньше отсюда человека разворачивало на регистрацию, и до разговора с нами
+       он должен был придумать пароль. Для холодного трафика из рекламы это стена:
+       он пришёл спросить и заплатить, а не заводить учётную запись на незнакомом
+       сайте. Аккаунт нужен нам не чтобы ПРИНЯТЬ заявку, а чтобы ВЫДАТЬ курс, —
+       значит он может появиться после оплаты, и порядок шагов был лишним.
+       Строку в purchases здесь не создаём: без сессии её запрещает RLS (и это
+       правильно — иначе кто угодно писал бы в чужую таблицу). Учётом на этом
+       этапе служит само сообщение в WhatsApp, а короткий код заказа даёт то же,
+       что и номер: возможность сослаться на конкретную заявку в переписке. */
     if (!session) {
-      const redirectTo = 'oplata.html?plan=' + key;
-      authNote.textContent = 'Нужен аккаунт — сейчас перенаправим на регистрацию/вход…';
-      setTimeout(() => {
-        location.href = 'index.html?redirect=' + encodeURIComponent(redirectTo) + '#cta';
-      }, 1200);
-      disableBtn('Сначала вход в аккаунт');
+      authNote.textContent = 'Аккаунт заводить не нужно — просто напишите нам, пришлём реквизиты Kaspi. ' +
+        'Доступ откроем сразу после оплаты.';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!consent.checked) {
+          consent.closest('.consent').classList.add('consent--error');
+          return;
+        }
+        const code = 'G' + Date.now().toString(36).toUpperCase().slice(-5);
+        toWhatsApp('Здравствуйте! Хочу оплатить тариф «' + plan.title + '» за ' + plan.newPrice +
+          '. Код заказа: ' + code + '.');
+      });
       return;
     }
 
@@ -95,7 +117,7 @@
       if (profile && profile.client_no) parts.push('Клиент №' + profile.client_no + '.');
       if (created && created.order_no) parts.push('Заказ №' + created.order_no + '.');
       parts.push('Мой email в личном кабинете: ' + session.user.email);
-      location.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(parts.join(' '));
+      toWhatsApp(parts.join(' '));
     });
   });
 })();
