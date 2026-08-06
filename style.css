@@ -377,6 +377,10 @@ p{ font-size:14.8px; color:var(--dim); }
 /* ===== footer ===== */
 .foot{ padding:32px 0 38px; border-top:1px solid var(--line-soft); }
 .foot__row{ display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; font-size:11.5px; color:var(--faint); }
+.foot__brand{ display:flex; align-items:center; gap:10px; }
+/* фон картинки совпадает с фоном страницы, поэтому скругление читается
+   как форма самого знака, а не как рамка вокруг него */
+.foot__mark{ width:26px; height:26px; border-radius:7px; display:block; }
 .foot nav{ display:flex; gap:24px; }
 .foot a{ color:var(--faint); transition:color .3s ease; }
 .foot a:hover{ color:var(--g); }
