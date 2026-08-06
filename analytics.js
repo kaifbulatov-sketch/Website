@@ -37,7 +37,7 @@
        аналитику по поведению на сайте, а не только конверсии для рекламы. */
 const GOOGLE_ADS_ID = 'AW-18351773114';
 const GOOGLE_ADS_LABEL = 'h5dVCOHg19wcELqr565E';
-const GA4_ID = '';
+const GA4_ID = 'G-B0B5GD3KJD';
 
 /* --- TikTok и Meta: пригодятся, если реклама пойдёт и туда ---------------- */
 const TIKTOK_PIXEL_ID = '';
