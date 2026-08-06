@@ -665,23 +665,28 @@ if (offerTimer) {
     tick();
   };
 
-  // Локальный кэш даёт мгновенную отрисовку без "прыжка" цифр после ответа сервера.
-  if (deadlineMs) {
+  /* Отсчёт рисуется НЕМЕДЛЕННО, ещё до похода на сервер.
+     Так было не всегда: раньше на первом визите (а это каждый человек из рекламы —
+     в localStorage у него пусто) таймер оставался пустым до ответа Edge Function.
+     Пока функция не развёрнута, она отвечает 404 почти через полторы секунды, и всё
+     это время на месте скидки, обещанной в объявлении, зияла пустота. Для платного
+     трафика это прямая потеря: первое, что видит человек, — что обещанного нет.
+     Теперь сервер не задерживает показ, а только уточняет дедлайн, когда ответит. */
+  if (!deadlineMs) {
+    setDeadline(Date.now() + FALLBACK_MS);
+  } else {
     timerId = setInterval(tick, 1000);
     tick();
   }
 
-  const useLocalFallback = () => {
-    if (!deadlineMs) setDeadline(Date.now() + FALLBACK_MS);
-  };
-
+  // Ответ сервера авторитетнее локального: он привязан к IP и переживает смену
+  // браузера. setDeadline сам перезапишет и значение, и localStorage. Ошибку
+  // глушим молча — отсчёт у человека уже идёт, показывать ему нечего.
   if (SUPABASE_CONFIGURED) {
     fetch(`${SUPABASE_URL}/functions/v1/promo-timer`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('bad response'))))
       .then(({ deadline }) => setDeadline(new Date(deadline).getTime()))
-      .catch(useLocalFallback);
-  } else {
-    useLocalFallback();
+      .catch(() => {});
   }
 }
 
