@@ -72,10 +72,14 @@
     <div class="row up">
       <a href="#pricing" class="btn btn--fill">Тарифы</a>
       <a href="#program" class="btn btn--line">Программа</a>
+      <span class="hero__price mono">от 10 000 ₸</span>
     </div>
   </div>
-  <div class="hero__meta mono up">
-    <span>SYS / ГОТОВ</span><span class="sep">—</span><span id="clock">00:00:00</span>
+  <!-- Тот же отсчёт, что и над тарифами: до первого экрана человек из рекламы
+       доходит всегда, а до блока с ценами — далеко не всегда. Оба показывают
+       один дедлайн и исчезают вместе, когда скидка кончается. -->
+  <div class="hero__meta mono up" id="heroOffer">
+    <span>Скидка 50% сгорает через</span><span class="sep">—</span><span id="offerTimerHero">00:00:00</span>
   </div>
 </section>
 

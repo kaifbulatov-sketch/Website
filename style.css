@@ -211,6 +211,15 @@ p{ font-size:14.8px; color:var(--dim); }
   font-size:11px; letter-spacing:.24em; color:var(--faint); text-transform:uppercase;
 }
 .hero__meta .sep{ color:var(--g); opacity:.5; }
+/* Сам отсчёт — акцентным цветом: подпись рядом намеренно приглушена, работать
+   должны цифры, иначе строка читается как очередная техническая надпись. */
+.hero__meta #offerTimerHero{ color:var(--g); }
+/* Цена стоит рядом с кнопкой, а не только в блоке тарифов: до тарифов
+   доскроллит не каждый, а вопрос «сколько» возникает на первом же экране. */
+.hero__price{
+  align-self:center; font-size:12px; letter-spacing:.14em;
+  color:var(--dim); text-transform:uppercase; white-space:nowrap;
+}
 
 /* ===== ticker ===== */
 .ticker{

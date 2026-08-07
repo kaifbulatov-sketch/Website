@@ -601,16 +601,11 @@ function onScroll() {
 addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 
-const clock = document.getElementById('clock');
-if (clock) {
-  const tick = () => {
-    const d = new Date();
-    clock.textContent = [d.getHours(), d.getMinutes(), d.getSeconds()]
-      .map(n => String(n).padStart(2, '0')).join(':');
-  };
-  tick();
-  setInterval(tick, 1000);
-}
+/* Раньше в шапке героя шли текущие часы — «SYS / ГОТОВ — 14:32:07». Выглядело
+   уместно, но человеку из рекламы ничего не сообщало: он видел время, которое и
+   так есть у него на телефоне. Место на первом экране слишком дорогое, чтобы
+   отдавать его декорации, поэтому там теперь настоящий отсчёт скидки — им
+   занимается блок offerTimer ниже. */
 
 const offerTimer = document.getElementById('offerTimer');
 if (offerTimer) {
@@ -629,6 +624,10 @@ if (offerTimer) {
   const LOCAL_KEY = 'neura_promo_deadline';
   const FALLBACK_MS = 24 * 3600000;
   const offerBanner = document.querySelector('.offer');
+  // Второй экземпляр отсчёта — на первом экране. Может отсутствовать (страница
+  // оплаты, внутренние страницы), поэтому везде проверяется на null.
+  const offerTimerHero = document.getElementById('offerTimerHero');
+  const heroOffer = document.getElementById('heroOffer');
 
   const setRegularPricing = () => {
     document.querySelectorAll('.plan__price').forEach((price) => {
@@ -647,13 +646,16 @@ if (offerTimer) {
     if (left <= 0) {
       if (timerId) clearInterval(timerId);
       if (offerBanner) offerBanner.remove();
+      if (heroOffer) heroOffer.remove();
       setRegularPricing();
       return;
     }
     const h = Math.floor(left / 3600000);
     const m = Math.floor((left % 3600000) / 60000);
     const s = Math.floor((left % 60000) / 1000);
-    offerTimer.textContent = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+    const text = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+    offerTimer.textContent = text;
+    if (offerTimerHero) offerTimerHero.textContent = text;
   };
 
   const setDeadline = (ms) => {
