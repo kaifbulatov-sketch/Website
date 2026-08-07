@@ -149,6 +149,13 @@ a, button, .btn, .mod__q, .acc__q, label.consent, .consent input, .burger{
   line-height:1.12; letter-spacing:-.03em; margin-bottom:26px;
   text-shadow:0 0 24px rgba(79,227,208,.1);
 }
+/* Ступень между .h2 и обычным h3: нужна там, где заголовок ведёт целый блок,
+   но блок компактный и полноразмерный .h2 в нём выглядит криком. */
+.h3{
+  font-size:clamp(21px,2.5vw,31px); font-weight:200;
+  line-height:1.18; letter-spacing:-.025em; margin-bottom:20px;
+  text-shadow:0 0 20px rgba(79,227,208,.1);
+}
 .dim{ color:var(--dim); }
 h3{ font-size:18.5px; font-weight:400; letter-spacing:-.01em; margin-bottom:10px; }
 h4{ font-size:14px; font-weight:500; letter-spacing:.06em; margin-bottom:8px; color:var(--violet); }
@@ -318,6 +325,19 @@ p{ font-size:14.8px; color:var(--dim); }
   border-bottom:1px solid var(--line-soft); letter-spacing:.02em;
 }
 .plan--full{ background:rgba(26,20,52,.45); }
+
+/* ===== ask — бесплатный первый шаг ===== */
+.ask{ padding:clamp(56px,8vh,88px) 0; }
+.ask__box{
+  max-width:640px; margin:0 auto; text-align:center;
+  padding:clamp(28px,4vw,42px);
+  border:1px solid rgba(79,227,208,.3); background:rgba(79,227,208,.05);
+  box-shadow:0 0 34px rgba(79,227,208,.08);
+}
+.ask__box .label{ margin-bottom:14px; }
+.ask__box .h3{ margin-bottom:16px; }
+.ask__lead{ color:var(--dim); margin-bottom:26px; }
+.ask__note{ margin-top:16px; font-size:11.5px; color:var(--faint); }
 
 /* ===== offer ===== */
 .offer{

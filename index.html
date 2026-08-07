@@ -91,6 +91,25 @@
   </div>
 </div>
 
+<!-- ASK — бесплатная первая ступень.
+     Человек приходит из ленты Shorts, где он отдыхал, а не покупал. Просить у него
+     30 000 ₸ первым же действием — слишком большой шаг, и 800 визитов без единой
+     заявки это показали. Здесь шаг маленький и бесплатный: написать и спросить.
+     Дальше продаёт переписка, а не сайт. Блок стоит сразу за первым экраном,
+     потому что на телефоне дальше доскроллит меньшинство. -->
+<section class="ask stage" id="ask">
+  <div class="wrap ask__box up">
+    <p class="label mono">Сначала спросите</p>
+    <h2 class="h3">Не уверены, что подойдёт? Спросите — это бесплатно</h2>
+    <p class="ask__lead">
+      Пришлём полную программу всех 28 уроков и честно скажем, решит ли курс вашу
+      задачу. Без оплаты и без обязательств — просто ответим.
+    </p>
+    <a href="#" class="btn btn--fill" id="askBtn">Задать вопрос в WhatsApp</a>
+    <p class="ask__note mono" id="askNote">Отвечаем в течение дня</p>
+  </div>
+</section>
+
 <!-- LEARN -->
 <section class="sec pad stage" id="learn">
   <div class="wrap">
@@ -348,6 +367,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
+<!-- нужен блоку «Сначала спросите»: номер подставляется на сборке из IP_WHATSAPP -->
+<script src="whatsapp-config.js"></script>
 <script src="auth.js"></script>
 <script src="script.js"></script>
 <script src="analytics.js"></script>

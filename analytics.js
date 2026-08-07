@@ -130,12 +130,16 @@ const META_PIXEL_ID = '';
   const GA4_NAMES = {
     ViewContent: 'view_item_list',
     InitiateCheckout: 'begin_checkout',
-    CompleteRegistration: 'sign_up'
+    CompleteRegistration: 'sign_up',
+    Lead: 'generate_lead'
   };
   // За какие события Google Ads должен засчитывать конверсию. Просмотр тарифов
   // сюда не входит намеренно: если конверсией считать каждый просмотр, алгоритм
   // начнёт искать зрителей, а не покупателей.
-  const ADS_CONVERSIONS = ['InitiateCheckout', 'CompleteRegistration'];
+  // Lead здесь же: обращение в WhatsApp за консультацией — такое же осмысленное
+  // действие, как начало оформления, и для холодного трафика из рекламы оно даже
+  // вероятнее. Считать его конверсией правильно, иначе алгоритму нечему учиться.
+  const ADS_CONVERSIONS = ['InitiateCheckout', 'CompleteRegistration', 'Lead'];
 
   function track(event, params) {
     try { if (hasTikTok && window.ttq) window.ttq.track(event, params || {}); } catch (e) {}

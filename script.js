@@ -692,6 +692,35 @@ if (offerTimer) {
   }
 }
 
+/* ------------------------------------------------------------------
+   Блок «Сначала спросите» — вход в диалог без оплаты.
+   Ведёт в тот же WhatsApp, что и заказ, но с другим текстом: по нему видно,
+   что человек пришёл за консультацией, а не платить, и отвечать ему нужно
+   иначе. Код заявки не выдаём намеренно — здесь нет заказа, а лишний
+   непонятный набор символов в первом сообщении только мешает.
+------------------------------------------------------------------- */
+const askBtn = document.getElementById('askBtn');
+if (askBtn) {
+  const askNote = document.getElementById('askNote');
+  if (typeof WHATSAPP_CONFIGURED === 'undefined' || !WHATSAPP_CONFIGURED) {
+    // Номер не подставлен — вместо неработающей ссылки убираем блок целиком:
+    // кнопка, которая никуда не ведёт, хуже её отсутствия.
+    const section = document.getElementById('ask');
+    if (section) section.remove();
+  } else {
+    askBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (askNote) askNote.textContent = 'Открываем WhatsApp…';
+      if (typeof window.neuraTrack === 'function') {
+        window.neuraTrack('Lead', { content_name: 'Вопрос о курсе' });
+      }
+      const text = 'Здравствуйте! Пишу с сайта neurastudy.xyz. ' +
+        'Пришлите, пожалуйста, программу курса — хочу понять, подойдёт ли он мне.';
+      location.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text);
+    });
+  }
+}
+
 const burger = document.getElementById('burger');
 const nav = document.getElementById('nav');
 burger.addEventListener('click', () => {
