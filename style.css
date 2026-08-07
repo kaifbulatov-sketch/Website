@@ -152,7 +152,7 @@ a, button, .btn, .mod__q, .acc__q, label.consent, .consent input, .burger{
 /* Ступень между .h2 и обычным h3: нужна там, где заголовок ведёт целый блок,
    но блок компактный и полноразмерный .h2 в нём выглядит криком. */
 .h3{
-  font-size:clamp(21px,2.5vw,31px); font-weight:200;
+  font-size:clamp(21px,2.5vw,31px); font-weight:300;
   line-height:1.18; letter-spacing:-.025em; margin-bottom:20px;
   text-shadow:0 0 20px rgba(79,227,208,.1);
 }
@@ -328,11 +328,15 @@ p{ font-size:14.8px; color:var(--dim); }
 
 /* ===== ask — бесплатный первый шаг ===== */
 .ask{ padding:clamp(56px,8vh,88px) 0; }
+/* Подложка почти непрозрачная: за ней идёт анимированный тоннель, и на
+   полупрозрачной карточке текст в него проваливался — на телефоне читать
+   было нечем. Это единственный блок, который обязан читаться с первого взгляда. */
 .ask__box{
   max-width:640px; margin:0 auto; text-align:center;
   padding:clamp(28px,4vw,42px);
-  border:1px solid rgba(79,227,208,.3); background:rgba(79,227,208,.05);
-  box-shadow:0 0 34px rgba(79,227,208,.08);
+  border:1px solid rgba(79,227,208,.34); background:rgba(7,6,15,.86);
+  backdrop-filter:blur(10px);
+  box-shadow:0 0 40px rgba(79,227,208,.1);
 }
 .ask__box .label{ margin-bottom:14px; }
 .ask__box .h3{ margin-bottom:16px; }
